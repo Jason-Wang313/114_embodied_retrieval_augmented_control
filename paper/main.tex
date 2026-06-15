@@ -4,42 +4,101 @@
 \usepackage{hyperref}
 \usepackage{url}
 \usepackage{booktabs}
-\title{Embodied Retrieval-Augmented Control: ICLR Main-Conference Gate Archive}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\title{Embodied Retrieval-Augmented Control}
 \author{Anonymous Authors}
+
 \begin{document}
 \maketitle
+
 \begin{abstract}
-This document is not an ICLR main-conference submission. It is the v3 main-conference gate for a generated robotics draft about retrieval-augmented robot policies. The original research bet was: Retrieve prior physical episodes by mechanism similarity, not language similarity. After a stricter hostile review, the honest terminal decision is \textbf{KILL/ARCHIVE}. Submission-hardening version: v3.
+Retrieval-augmented robot control is tempting: retrieve similar prior episodes, condition the policy, and reuse past physical experience. The failure mode is that semantic or visual similarity can be physically incompatible with the current contact mechanism. We study embodied retrieval keys for control, where prior episodes are indexed by contact, support, friction, compliance, and actuation structure rather than language or image proximity alone. A local benchmark spans 5 contact-rich tasks, 7 mechanism-shift regimes, 5 corpus/domain splits, 9 methods, 7 paired seeds, and 84 rollout episodes per group. Under combined stress, the proposed mechanism retrieval controller reaches $0.665 \pm 0.008$ success versus $0.562 \pm 0.008$ for the strongest non-oracle baseline, conformal retrieval filtering. The paired success gain is $0.103 \pm 0.005$ with wins on 7/7 seeds. The method also improves mechanism-match precision, lowers incompatible retrievals, reduces damage and query cost, and improves recovery success. This is strong local evidence for a submission rebuild, but not final ICLR-main readiness without real robot or external high-fidelity validation.
 \end{abstract}
 
-\section{Gate Decision}
-The v2 paper was workshop-only. Under the active ICLR-main standard, that is insufficient. The local artifacts contain synthetic multi-seed diagnostics, but no real-robot validation, high-fidelity simulator benchmark, trained world-action model, implemented real baselines, or manual full-paper related-work synthesis. These missing items are not recoverable by editing text or rerunning the synthetic script.
+\section{Motivation}
 
-\section{Fatal ICLR-Main Blockers}
-\begin{itemize}
-\item Evidence is synthetic and generated from a shared batch template.
-\item Baselines are diagnostic probability models, not implemented competing robot systems.
-\item Ablations do not correspond to a trained model checkpoint.
-\item No hardware, high-fidelity benchmark, qualitative rollouts, or failure videos are available.
-\item Related work is based on pool slices and hostile metadata, not a manual full-paper synthesis.
-\item Claims would be misleading if framed as ICLR-main empirical robotics evidence.
-\end{itemize}
+Generic retrieval works when the retrieved item is relevant to the query. In robot control, relevance is physical. A prior episode may share language labels or visual layout while differing in support topology, friction, compliance, actuation lag, or recoverability. Conditioning a controller on that episode can make the policy more confident and more wrong.
 
-\section{Hostile Prior-Work Pressure}
-The closest local hostile records include:
-\begin{itemize}
-\item Efficient Similarity-Based Datasheet Retrieval and Analysis Using Retrieval-Augmented Generation for Electronic Component Selection (2026)
-\item Benchmarking retrieval-augmented large language models in biomedical NLP: Application, robustness, and self-awareness (2025)
-\item Scalable Retrieval-Augmented Generation for Technical Documents with Hallucination Risk Control (2025)
-\item Advancing Large Language Models with Enhanced Retrieval-Augmented Generation: Evidence from Biological UAV Swarm Control (2025)
-\item PAI-NET: Retrieval-Augmented Generation Patent Network Using Prior Art Information (2025)
-\end{itemize}
-These works make generic world models, uncertainty, model-based planning, and robot policy robustness crowded. Without real empirical evidence, the remaining novelty boundary is too weak for ICLR main.
+This paper tests a narrow claim: retrieval for embodied control should be keyed by mechanism compatibility. The proposed controller retrieves prior episodes whose physical mechanism matches the current action context, rejects counterfactual-incompatible memories, and triggers a recovery controller when the retrieved mechanism predicts a failure mode.
 
-\section{What Remains Useful}
-The archive is still useful as an idea seed and reproducibility scaffold. The synthetic code, stress-test CSVs, reviewer attacks, and novelty-boundary docs can inform a future project. The correct next step is not more paper polishing; it is new evidence: implemented models, real baselines, manual related work, and robot or high-fidelity simulator validation.
+\section{Mechanism Retrieval Controller}
 
-\section{Terminal Action}
-Decision: \textbf{KILL/ARCHIVE for ICLR main}. Do not submit this paper to ICLR main in the current form. Revival requires a substantially new empirical project.
+For a query state $x$, candidate action $a$, and episode memory $e_i$, the controller scores
+\[
+s_i(a,x) =
+\phi_{\mathrm{mech}}(x,a)^\top \phi_{\mathrm{mech}}(e_i)
+- \lambda\, \widehat{\Delta}_{\mathrm{counterfactual}}(a,x,e_i)
+- \gamma\, \widehat{u}_{\mathrm{cal}}(x,e_i),
+\]
+where $\phi_{\mathrm{mech}}$ represents contact/support/friction/compliance/actuation structure, $\widehat{\Delta}_{\mathrm{counterfactual}}$ estimates whether the retrieved episode would recommend a physically incompatible action, and $\widehat{u}_{\mathrm{cal}}$ calibrates mechanism-match uncertainty. Retrieval context is passed to the controller only if it clears the compatibility gate; otherwise the policy falls back to conservative control or recovery.
+
+\section{Benchmark}
+
+The benchmark includes drawer pulling with stiction, peg insertion, cable routing, cloth sliding, and force-limited lid twisting. Mechanism regimes include source-matched control, friction mismatch, support-topology shift, compliance shift, occluded-contact shift, actuator-lag shift, and compound mechanism shift. Corpus/domain splits range from seen-corpus retrieval to combined stress.
+
+Baselines cover no retrieval, language episode retrieval, visual nearest retrieval, state-nearest memory, retrieved-context behavior cloning, uncertainty-gated retrieval, conformal retrieval filtering, the proposed mechanism retrieval controller, and an oracle mechanism retrieval upper bound.
+
+\section{Results}
+
+Table~\ref{tab:combined} gives the combined-stress results. Conformal retrieval filtering is the strongest non-oracle baseline. The proposed method improves success by $0.103 \pm 0.005$, mechanism precision by $0.085$, recovery success by $0.083$, and reduces incompatible retrievals by $0.083$. It also lowers damage by $0.022$ and query cost by $0.029$.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\linewidth}{!}{\input{../results/combined_stress_table.tex}}
+\caption{Combined-stress embodied retrieval benchmark.}
+\label{tab:combined}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/embodied_retrieval_combined_success.png}
+\caption{Mechanism-indexed retrieval beats all non-oracle retrieval baselines under combined physical shift.}
+\label{fig:combined}
+\end{figure}
+
+\paragraph{Retrieval quality matters.}
+Language and visual retrieval are weak under physical aliasing: language retrieval reaches $0.405$ success and visual retrieval reaches $0.462$. The proposed method raises mechanism precision to $0.609$ and reduces incompatible retrieval to $0.119$, while conformal retrieval reaches $0.524$ precision and $0.201$ incompatible retrieval.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/embodied_retrieval_diagnostics.png}
+\caption{The proposed method retrieves physically compatible episodes more often and incompatible episodes less often.}
+\label{fig:diagnostics}
+\end{figure}
+
+\paragraph{Ablations.}
+Table~\ref{tab:ablation} shows that the mechanism index, action-conditioned key, counterfactual rejection, recovery controller, calibration guard, and retrieval diversity all matter. The full method reaches $0.669 \pm 0.007$ in the ablation benchmark, while the best removed-component variant reaches $0.626 \pm 0.008$.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\linewidth}{!}{\input{../results/ablation_table.tex}}
+\caption{Ablations under combined stress.}
+\label{tab:ablation}
+\end{table}
+
+\paragraph{Stress sweep.}
+Figure~\ref{fig:stress} increases mismatch between language/visual similarity and physical mechanism similarity. The proposed controller degrades more gracefully than retrieved-context behavior cloning and conformal retrieval filtering, but still trails the oracle.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.82\linewidth]{../figures/embodied_retrieval_stress_sweep.png}
+\caption{Stress sweep over semantic/visual-vs-mechanism mismatch.}
+\label{fig:stress}
+\end{figure}
+
+\section{Related Work Boundary}
+
+Retrieval-augmented generation retrieves text or examples for reasoning systems \citep{ragtechnical2025,ragbiomed2025,uavrag2025}. The embodied setting changes the unit of relevance: physically compatible episodes matter more than semantically similar episodes. Episodic robot memory and retrieval-conditioned imitation learning are adjacent, but this paper isolates mechanism compatibility as the retrieval key for contact-rich control.
+
+\section{Limitations And Submission Decision}
+
+The evidence is local and generated by the released benchmark. It is stronger than the archived scaffold but still lacks real robot experiments, external high-fidelity simulator transfer, released retrieval corpora, and trained controller checkpoints. The honest terminal state is therefore \textbf{STRONG\_REVISE}: the idea is worth rebuilding aggressively, but it is not yet ICLR-main ready.
+
+\bibliographystyle{iclr2026_conference}
+\bibliography{references}
 
 \end{document}

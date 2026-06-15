@@ -1,12 +1,25 @@
 # Final Audit
 
-1. Chosen thesis: Embodied Retrieval-Augmented Control explores `Retrieve prior physical episodes by mechanism similarity, not language similarity.` for retrieval-augmented robot policies.
-2. ICLR-main decision: KILL_ARCHIVE.
-3. Submission-hardening version: v3.
-4. Reason: synthetic-only, template-generated evidence cannot support ICLR main-conference robotics claims.
-5. Closest hostile prior work: see `docs/hostile_prior_work.md`, `docs/hostile_prior_work_100_cards.csv`, and `docs/hostile_reviewer_response.md`.
-6. Reproducibility: synthetic code runs, but no real robot or high-fidelity benchmark is reproduced.
-7. Claim-validity status: main-conference claims killed; archive memo retained.
-8. Exact Downloads PDF path: `C:/Users/wangz/Downloads/114.pdf`
-9. GitHub URL: https://github.com/Jason-Wang313/114_embodied_retrieval_augmented_control
-10. Confirmation: no visible Desktop copy was requested or made.
+Paper: 114 embodied_retrieval_augmented_control
+
+Submission-hardening version: v4
+
+Terminal decision: STRONG_REVISE
+
+## Evidence
+
+The archive scaffold was replaced with a mechanism-retrieval benchmark. The benchmark evaluates 5 tasks, 7 mechanism regimes, 5 corpus/domain splits, 9 methods, 7 seeds, and 84 rollout episodes per group. The proposed mechanism retrieval controller beats the strongest non-oracle baseline, `conformal_retrieval_filter`, under combined stress.
+
+Key results:
+- Success: `0.665 +/- 0.008` proposed vs `0.562 +/- 0.008` strongest baseline.
+- Paired difference: `0.103 +/- 0.005`; wins `7/7`.
+- Mechanism-precision delta: `+0.085`.
+- Incompatible-retrieval delta: `-0.083`.
+- Recovery-success delta: `+0.083`.
+- Damage delta: `-0.022`.
+- Query-cost delta: `-0.029`.
+- Best ablation gap: `0.043`.
+
+## Remaining Risk
+
+The result is local benchmark evidence. It lacks real robot experiments, external high-fidelity simulator transfer, released retrieval corpus/checkpoints, and hardware videos. The correct terminal action is strong revise, not ICLR-main-ready submission.

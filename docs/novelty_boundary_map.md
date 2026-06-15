@@ -1,13 +1,21 @@
 # Novelty Boundary Map
 
-## Crowded Territory
-- Bigger data/model scaling.
-- New benchmark only.
-- Generic active learning or uncertainty.
-- Combining a planner with a learned policy without a new state/action object.
+## Inside The Claim
 
-## Claimed Boundary
-Embodied retrieval augmented control keeps action-critical alternatives explicit until a physical observation collapses them.
+- Mechanism-indexed retrieval for robot control.
+- Action-conditioned retrieval keys.
+- Counterfactual rejection of physically incompatible episodes.
+- Recovery control triggered by mechanism-matched memories.
+- Control metrics for retrieval quality.
 
-## What Would Falsify The Claim
-If observed-only baselines match the adverse-mode coverage and closed-loop success of the proposed branch-aware mechanism, the paper should be revised or killed.
+## Outside The Claim
+
+- General RAG for text.
+- Universal robot memory.
+- Real hardware SOTA.
+- Replacing system identification.
+- External benchmark generality.
+
+## Closest Baseline Boundary
+
+The closest local competitor is `conformal_retrieval_filter`. It rejects uncertain retrievals but does not encode physical mechanism compatibility. The proposed method wins by `0.103 +/- 0.005` combined-stress success and reduces incompatible retrievals by `0.083`.

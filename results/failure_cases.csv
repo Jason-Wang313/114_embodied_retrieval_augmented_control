@@ -1,0 +1,4 @@
+case,expected_behavior,observed_failure_mode,lesson
+wrong_mechanism_true_language_match,reject language-near episode,top-1 language retrieval collides,language similarity is not physical compatibility
+hidden_support_topology,retrieve support-matched memory,mechanism precision drops without probing,support topology needs active contact evidence
+actuator_lag_plus_compliance,trigger recovery controller,retrieval alone under-corrects force lag,retrieval must be coupled to recovery control

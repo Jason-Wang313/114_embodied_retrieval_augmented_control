@@ -1,7 +1,7 @@
 # Novelty Decision
 
-Chosen thesis: Embodied Retrieval-Augmented Control turns the seed bet into a mechanism: Retrieve prior physical episodes by mechanism similarity, not language similarity.
+Decision: STRONG_REVISE
 
-New central mechanism: Embodied retrieval augmented control keeps action-critical alternatives explicit until a physical observation collapses them.
+The v4 rebuild defines a narrower and more defensible novelty boundary: retrieval-augmented control should retrieve by embodied mechanism compatibility, not by language or visual similarity alone. The local evidence supports this boundary against strong retrieval filters and ablations.
 
-Decision: proceed as a revise/workshop-strength ICLR-style draft with synthetic but runnable evidence.
+The claim remains incomplete without real robot or external high-fidelity evidence.
