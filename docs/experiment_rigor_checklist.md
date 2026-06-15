@@ -9,9 +9,9 @@
 - [x] 9 methods including strong retrieval baselines and oracle upper bound.
 - [x] 7 paired seeds and 84 rollout episodes per group.
 - [x] Pairwise seed differences and win counts.
-- [x] Stress sweep over semantic/visual-vs-physical retrieval mismatch.
+- [x] Stress sweep over semantic/visual-vs-physical retrieval mismatch with task/regime/seed detail.
 - [x] Core ablations with a predeclared margin gate.
-- [x] Failure cases, figures, and LaTeX tables.
+- [x] Eight failure cases, figures, and LaTeX tables.
 
 ## ICLR Main Remaining Gaps
 

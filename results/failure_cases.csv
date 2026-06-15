@@ -2,3 +2,8 @@ case,expected_behavior,observed_failure_mode,lesson
 wrong_mechanism_true_language_match,reject language-near episode,top-1 language retrieval collides,language similarity is not physical compatibility
 hidden_support_topology,retrieve support-matched memory,mechanism precision drops without probing,support topology needs active contact evidence
 actuator_lag_plus_compliance,trigger recovery controller,retrieval alone under-corrects force lag,retrieval must be coupled to recovery control
+visually_near_mechanically_opposite,reject visual-nearest memory,retrieved visual neighbor has opposite contact mode,visual similarity cannot substitute for mechanism indexing
+stale_recovery_memory,discount old recovery episode,old recovery succeeds in source embodiment but jams the target gripper,retrieval memories need embodiment-age and actuator-context checks
+partial_observability_alias,query or probe before retrieving,two mechanisms share the same observed state until contact,retrieval controller needs active disambiguation under hidden mechanism state
+overconformal_rejection,retain useful mechanism-near memories,conservative filter rejects helpful recovery cases under high shift,risk filters should not erase mechanism coverage
+oracle_gap_under_compound_shift,approach oracle mechanism retrieval,oracle remains substantially better under maximum mechanism mismatch,local retrieval index is useful but not saturated

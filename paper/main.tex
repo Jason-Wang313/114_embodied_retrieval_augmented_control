@@ -6,6 +6,8 @@
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{microtype}
+\raggedbottom
 
 \title{Embodied Retrieval-Augmented Control}
 \author{Anonymous Authors}
@@ -14,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-Retrieval-augmented robot control is tempting: retrieve similar prior episodes, condition the policy, and reuse past physical experience. The failure mode is that semantic or visual similarity can be physically incompatible with the current contact mechanism. We study embodied retrieval keys for control, where prior episodes are indexed by contact, support, friction, compliance, and actuation structure rather than language or image proximity alone. A local benchmark spans 5 contact-rich tasks, 7 mechanism-shift regimes, 5 corpus/domain splits, 9 methods, 7 paired seeds, and 84 rollout episodes per group. Under combined stress, the proposed mechanism retrieval controller reaches $0.665 \pm 0.008$ success versus $0.562 \pm 0.008$ for the strongest non-oracle baseline, conformal retrieval filtering. The paired success gain is $0.103 \pm 0.005$ with wins on 7/7 seeds. The method also improves mechanism-match precision, lowers incompatible retrievals, reduces damage and query cost, and improves recovery success. This is strong local evidence for a submission rebuild, but not final ICLR-main readiness without real robot or external high-fidelity validation.
+Retrieval-augmented robot control is tempting: retrieve similar prior episodes, condition the policy, and reuse past physical experience. The failure mode is that semantic or visual similarity can be physically incompatible with the current contact mechanism. We study embodied retrieval keys for control, where prior episodes are indexed by contact, support, friction, compliance, and actuation structure rather than language or image proximity alone. A v4.1 local benchmark spans 5 contact-rich tasks, 7 mechanism-shift regimes, 5 corpus/domain splits, 9 methods, 7 paired seeds, 84 rollout episodes per group, 5,880 task/regime/seed stress rows, and 8 documented failure cases. Under combined stress, the proposed mechanism retrieval controller reaches $0.665 \pm 0.008$ success versus $0.562 \pm 0.008$ for the strongest non-oracle baseline, conformal retrieval filtering. The paired success gain is $0.103 \pm 0.005$ with wins on 7/7 seeds. The method also improves mechanism-match precision, lowers incompatible retrievals, reduces damage and query cost, and improves recovery success. This is strong local evidence for a submission rebuild, but not final ICLR-main readiness without real robot or external high-fidelity validation.
 \end{abstract}
 
 \section{Motivation}
@@ -39,6 +41,8 @@ where $\phi_{\mathrm{mech}}$ represents contact/support/friction/compliance/actu
 The benchmark includes drawer pulling with stiction, peg insertion, cable routing, cloth sliding, and force-limited lid twisting. Mechanism regimes include source-matched control, friction mismatch, support-topology shift, compliance shift, occluded-contact shift, actuator-lag shift, and compound mechanism shift. Corpus/domain splits range from seen-corpus retrieval to combined stress.
 
 Baselines cover no retrieval, language episode retrieval, visual nearest retrieval, state-nearest memory, retrieved-context behavior cloning, uncertainty-gated retrieval, conformal retrieval filtering, the proposed mechanism retrieval controller, and an oracle mechanism retrieval upper bound.
+
+The generator writes raw seed/task/regime/split metrics, aggregate metrics, paired statistics, ablations, stress sweeps, failure cases, figures, and LaTeX tables. The v4.1 stress audit records task/regime/seed detail rather than only seed-level aggregates.
 
 \section{Results}
 
@@ -81,7 +85,7 @@ Table~\ref{tab:ablation} shows that the mechanism index, action-conditioned key,
 \end{table}
 
 \paragraph{Stress sweep.}
-Figure~\ref{fig:stress} increases mismatch between language/visual similarity and physical mechanism similarity. The proposed controller degrades more gracefully than retrieved-context behavior cloning and conformal retrieval filtering, but still trails the oracle.
+Figure~\ref{fig:stress} increases mismatch between language/visual similarity and physical mechanism similarity over 5,880 task/regime/seed rows. The proposed controller degrades more gracefully than retrieved-context behavior cloning and conformal retrieval filtering, but still trails the oracle. At maximum stress, the proposed controller reaches $0.608 \pm 0.007$ success versus $0.465 \pm 0.008$ for conformal retrieval and $0.735 \pm 0.007$ for the oracle.
 
 \begin{figure}[t]
 \centering
@@ -89,6 +93,10 @@ Figure~\ref{fig:stress} increases mismatch between language/visual similarity an
 \caption{Stress sweep over semantic/visual-vs-mechanism mismatch.}
 \label{fig:stress}
 \end{figure}
+
+\section{Failure Cases}
+
+The failure-case audit records eight boundaries: language-near but mechanism-wrong retrieval, hidden support topology, actuator lag plus compliance, visually near but mechanically opposite episodes, stale recovery memories, partial-observability aliases, overconformal rejection, and remaining oracle headroom under compound shift. These cases require active contact evidence, embodiment-age checks, active disambiguation, and robot or independent high-fidelity validation before this can be treated as a submission-ready control system.
 
 \section{Related Work Boundary}
 
@@ -98,7 +106,10 @@ Retrieval-augmented generation retrieves text or examples for reasoning systems 
 
 The evidence is local and generated by the released benchmark. It is stronger than the archived scaffold but still lacks real robot experiments, external high-fidelity simulator transfer, released retrieval corpora, and trained controller checkpoints. The honest terminal state is therefore \textbf{STRONG\_REVISE}: the idea is worth rebuilding aggressively, but it is not yet ICLR-main ready.
 
+\begingroup
+\raggedright
 \bibliographystyle{iclr2026_conference}
 \bibliography{references}
+\endgroup
 
 \end{document}
