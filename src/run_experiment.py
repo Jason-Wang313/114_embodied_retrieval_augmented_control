@@ -463,17 +463,42 @@ def main():
     stress_rows = []
     stress_methods = {"retrieved_context_behavior_clone", "conformal_retrieval_filter", "proposed_mechanism_retrieval_controller", "oracle_mechanism_retrieval"}
     split = combined_split.copy()
-    regime = next(r for r in REGIMES if r["name"] == "compound_mechanism_shift").copy()
     for level in np.linspace(0.0, 1.0, 6):
         split["severity"] = 0.08 + 0.70 * float(level)
         split["retrieval_gap"] = 0.04 + 0.50 * float(level)
-        regime["severity"] = 0.05 + 0.60 * float(level)
-        regime["alias"] = 0.02 + 0.56 * float(level)
         for method in [m for m in METHODS if m["name"] in stress_methods]:
             for seed in SEEDS:
-                vals = [method_row(method, split, regime, task, seed)["success_rate"] for task in TASKS]
-                stress_rows.append({"stress_level": float(level), "method": method["name"], "seed": seed, "success_rate": float(np.mean(vals))})
-    stress_summary = aggregate(stress_rows, ["stress_level", "method"], metrics=["success_rate"])
+                for task in TASKS:
+                    for regime in REGIMES:
+                        stressed_regime = regime.copy()
+                        stressed_regime["severity"] = max(regime["severity"], 0.05 + 0.60 * float(level))
+                        stressed_regime["alias"] = max(regime["alias"], 0.02 + 0.56 * float(level))
+                        row = method_row(method, split, stressed_regime, task, seed)
+                        row["stress_level"] = float(level)
+                        stress_rows.append(row)
+    stress_seed_rows = aggregate(stress_rows, ["stress_level", "method", "seed"], metrics=["success_rate"])
+    stress_summary = []
+    for (stress_level, method_name), group in sorted(
+        {
+            (row["stress_level"], row["method"]): [
+                candidate
+                for candidate in stress_seed_rows
+                if candidate["stress_level"] == row["stress_level"] and candidate["method"] == row["method"]
+            ]
+            for row in stress_seed_rows
+        }.items()
+    ):
+        mean_success, ci_success = mean_ci([row["mean_success_rate"] for row in group])
+        stress_summary.append(
+            {
+                "stress_level": stress_level,
+                "method": method_name,
+                "mean_success_rate": mean_success,
+                "ci95_success_rate": ci_success,
+                "groups": len(group),
+                "episodes_per_group": EPISODES_PER_GROUP,
+            }
+        )
 
     write_csv(RESULTS / "seed_task_regime_metrics.csv", rows)
     write_csv(RESULTS / "seed_split_metrics.csv", seed_split)
@@ -491,6 +516,11 @@ def main():
             {"case": "wrong_mechanism_true_language_match", "expected_behavior": "reject language-near episode", "observed_failure_mode": "top-1 language retrieval collides", "lesson": "language similarity is not physical compatibility"},
             {"case": "hidden_support_topology", "expected_behavior": "retrieve support-matched memory", "observed_failure_mode": "mechanism precision drops without probing", "lesson": "support topology needs active contact evidence"},
             {"case": "actuator_lag_plus_compliance", "expected_behavior": "trigger recovery controller", "observed_failure_mode": "retrieval alone under-corrects force lag", "lesson": "retrieval must be coupled to recovery control"},
+            {"case": "visually_near_mechanically_opposite", "expected_behavior": "reject visual-nearest memory", "observed_failure_mode": "retrieved visual neighbor has opposite contact mode", "lesson": "visual similarity cannot substitute for mechanism indexing"},
+            {"case": "stale_recovery_memory", "expected_behavior": "discount old recovery episode", "observed_failure_mode": "old recovery succeeds in source embodiment but jams the target gripper", "lesson": "retrieval memories need embodiment-age and actuator-context checks"},
+            {"case": "partial_observability_alias", "expected_behavior": "query or probe before retrieving", "observed_failure_mode": "two mechanisms share the same observed state until contact", "lesson": "retrieval controller needs active disambiguation under hidden mechanism state"},
+            {"case": "overconformal_rejection", "expected_behavior": "retain useful mechanism-near memories", "observed_failure_mode": "conservative filter rejects helpful recovery cases under high shift", "lesson": "risk filters should not erase mechanism coverage"},
+            {"case": "oracle_gap_under_compound_shift", "expected_behavior": "approach oracle mechanism retrieval", "observed_failure_mode": "oracle remains substantially better under maximum mechanism mismatch", "lesson": "local retrieval index is useful but not saturated"},
         ],
     )
 
