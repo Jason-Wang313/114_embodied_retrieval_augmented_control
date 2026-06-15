@@ -1,0 +1,9 @@
+baseline,mean_success_diff,ci95_success_diff,paired_seed_wins,non_oracle,decisive
+conformal_retrieval_filter,0.103450,0.005427,7,True,True
+language_episode_retrieval,0.260010,0.012815,7,True,True
+no_retrieval_controller,0.325170,0.007236,7,True,True
+oracle_mechanism_retrieval,-0.098202,0.008668,0,False,False
+retrieved_context_behavior_clone,0.132119,0.011746,7,True,True
+state_nearest_memory,0.168027,0.009663,7,True,True
+uncertainty_gated_retrieval,0.129252,0.006514,7,True,True
+visual_nearest_retrieval,0.202624,0.006811,7,True,True

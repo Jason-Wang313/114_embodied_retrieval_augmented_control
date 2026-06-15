@@ -1,26 +1,17 @@
-        # Hostile Reviewer Response
+# Hostile Reviewer Response
 
-        Paper: 114 Embodied Retrieval-Augmented Control
+## Reviewer Attack: This is just RAG for robots.
 
-        ## Strongest Technical Threats
-        - Efficient Similarity-Based Datasheet Retrieval and Analysis Using Retrieval-Augmented Generation for Electronic Component Selection (2026)
-- Benchmarking retrieval-augmented large language models in biomedical NLP: Application, robustness, and self-awareness (2025)
-- Scalable Retrieval-Augmented Generation for Technical Documents with Hallucination Risk Control (2025)
-- Advancing Large Language Models with Enhanced Retrieval-Augmented Generation: Evidence from Biological UAV Swarm Control (2025)
-- PAI-NET: Retrieval-Augmented Generation Patent Network Using Prior Art Information (2025)
-- Enhancing Environmental Control in Broiler Production: Retrieval-Augmented Generation for Improved Decision-Making with Large Language Models (2025)
-- Enhancing Embodied Carbon Calculation in Buildings: A Retrieval-Augmented Generation Approach with Large Language Models (2025)
-- Vision Language Action Models for Embodied Intelligence A Structured Taxonomy Critical Analysis and Future Research Directions (2026)
+Response: The evidence focuses on physical mechanism compatibility. Language and visual retrieval fail badly under combined mechanism shift (`0.405` and `0.462` success). The proposed mechanism-indexed controller reaches `0.665 +/- 0.008`.
 
-        ## ICLR Main Response
-        A hostile ICLR reviewer would be correct to reject this as a main-conference submission. The v2 paper has reproducible synthetic evidence and careful limitations, but it does not contain the real robot, high-fidelity simulator, learned model, or manual related-work depth needed for the ICLR main track.
+## Reviewer Attack: A conformal retrieval filter should be enough.
 
-        ## Honest Action
-        The paper is marked `KILL_ARCHIVE`. This avoids converting a generated workshop-style idea into an overstated main-conference claim.
+Response: The strongest non-oracle baseline is `conformal_retrieval_filter` at `0.562 +/- 0.008`. The proposed method reaches `0.665 +/- 0.008`, a paired `0.103 +/- 0.005` gain with `7/7` seed wins, while also lowering incompatible retrieval, damage, and query cost.
 
-        ## What Would Be Needed To Revive
-        - Real robot or high-fidelity benchmark experiments.
-        - Implemented model and baselines, not synthetic probability tables.
-        - Manual full-paper related-work audit.
-        - Paper-specific writing and figures.
-        - Evidence that the core mechanism is learned and useful under deployment shift.
+## Reviewer Attack: The mechanism index may be decorative.
+
+Response: Ablations reject that. The full method reaches `0.669 +/- 0.007` in the ablation benchmark; the best removed-component variant reaches `0.626 +/- 0.008`, leaving a `0.043` success gap.
+
+## Reviewer Attack: The paper is not ready for ICLR main.
+
+Response: Agreed. The honest decision is `STRONG_REVISE`, not ready. It needs real robot or external high-fidelity validation and a released retrieval corpus/checkpoints.

@@ -1,6 +1,8 @@
-ablation,combined_stress_mean_success,ci95_success,interpretation
-full_proposed_branch_mechanism,0.6717,0.0145,all components
-minus_branch_atlas,0.5560,0.0142,removes explicit unrealized futures
-minus_tail_risk_objective,0.5736,0.0192,uses mean predicted value only
-minus_diagnostic_probe,0.5945,0.0114,does not actively test ambiguous physical modes
-minus_failure_memory,0.6140,0.0197,does not reuse repaired beliefs
+ablation,mean_success_rate,ci95_success_rate,mean_mechanism_precision,ci95_mechanism_precision,mean_incompatible_retrieval_rate,ci95_incompatible_retrieval_rate,mean_damage_rate,ci95_damage_rate,mean_recovery_success,ci95_recovery_success,mean_query_cost,ci95_query_cost,mean_calibration_error,ci95_calibration_error,groups,episodes_per_group
+full_mechanism_retrieval,0.669048,0.007251,0.609337,0.001079,0.117550,0.001059,0.064725,0.000866,0.570627,0.002111,0.239578,0.000477,0.075973,0.000459,245,84
+minus_action_conditioned_key,0.591788,0.008457,0.543394,0.000966,0.187091,0.001330,0.084540,0.000967,0.508217,0.002124,0.236668,0.000431,0.076906,0.000430,245,84
+minus_calibration_guard,0.625802,0.007626,0.556453,0.001029,0.168157,0.001311,0.081328,0.000892,0.525975,0.002190,0.250394,0.000429,0.076551,0.000436,245,84
+minus_counterfactual_rejection,0.610544,0.007335,0.551070,0.000977,0.176737,0.001387,0.081202,0.000942,0.517876,0.002118,0.227022,0.000434,0.076859,0.000442,245,84
+minus_mechanism_index,0.575850,0.008241,0.524432,0.001049,0.206639,0.001424,0.089561,0.000957,0.490450,0.002146,0.232645,0.000455,0.077240,0.000443,245,84
+minus_recovery_controller,0.618367,0.008476,0.559430,0.001058,0.162124,0.001267,0.079289,0.000929,0.485824,0.002047,0.220113,0.000435,0.076339,0.000461,245,84
+top1_only_retrieval,0.581924,0.009090,0.531358,0.001142,0.217055,0.001444,0.091632,0.000966,0.493659,0.002145,0.207430,0.000460,0.077493,0.000447,245,84

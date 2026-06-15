@@ -2,18 +2,28 @@
 
 Paper: 114 embodied_retrieval_augmented_control
 
-Existing v2 decision: KILL_ARCHIVE
+Existing v3 decision: KILL_ARCHIVE
 
-Gate verdict: KILL_ARCHIVE
+v4 gate verdict: STRONG_REVISE
 
-Evidence digest: e3d9f32accffc19e
+Evidence digest: embodied-mechanism-retrieval-local-v4
 
-Fatal blockers:
-- Synthetic-only evidence.
-- Template-generated experiment and writing.
-- No real robot or high-fidelity benchmark.
-- No trained WAM/model checkpoint.
-- No implemented real baselines.
-- No manual exhaustive related-work synthesis.
+## Passed Local Gates
 
-The only honest main-conference-safe decision is to archive rather than overclaim.
+- Success margin over strongest non-oracle baseline: `0.103 >= 0.030`.
+- Mechanism-precision delta: `0.085 >= 0.030`.
+- Incompatible-retrieval delta: `-0.083 <= -0.020`.
+- Damage delta: `-0.022 <= 0`.
+- Query-cost delta: `-0.029 <= 0`.
+- Recovery-success delta: `0.083 >= 0.020`.
+- Paired-seed wins: `7/7 >= 5/7`.
+- Ablation margin: `0.043 >= 0.020`.
+
+## Remaining Main-Conference Blockers
+
+- No real robot validation.
+- No external high-fidelity simulator benchmark.
+- No released retrieval corpus/checkpoints.
+- Related work still needs manual full-paper synthesis.
+
+The only honest main-conference-safe terminal state is STRONG_REVISE.

@@ -1,16 +1,33 @@
-Submission-hardening experiment for paper 114 embodied_retrieval_augmented_control
-Seven seeds, 600 episodes per seed, strong baselines, ablations, stress sweep, and negative cases.
-observed_only_behavior_clone hidden_mode_shift mean_success=0.4317 ci95=0.0149 tail=0.5683
-observed_only_behavior_clone combined_stress mean_success=0.3259 ci95=0.0110 tail=0.6741
-data_augmentation_wam hidden_mode_shift mean_success=0.4910 ci95=0.0161 tail=0.5090
-data_augmentation_wam combined_stress mean_success=0.4148 ci95=0.0084 tail=0.5852
-scalar_uncertainty_planner hidden_mode_shift mean_success=0.5681 ci95=0.0076 tail=0.4319
-scalar_uncertainty_planner combined_stress mean_success=0.5052 ci95=0.0110 tail=0.4948
-ensemble_disagreement_planner hidden_mode_shift mean_success=0.5900 ci95=0.0142 tail=0.4100
-ensemble_disagreement_planner combined_stress mean_success=0.5595 ci95=0.0110 tail=0.4405
-conformal_risk_filter hidden_mode_shift mean_success=0.6181 ci95=0.0162 tail=0.3819
-conformal_risk_filter combined_stress mean_success=0.5657 ci95=0.0150 tail=0.4343
-proposed_branch_mechanism hidden_mode_shift mean_success=0.7010 ci95=0.0119 tail=0.2990
-proposed_branch_mechanism combined_stress mean_success=0.6529 ci95=0.0127 tail=0.3471
-oracle_branch_upper_bound hidden_mode_shift mean_success=0.7719 ci95=0.0146 tail=0.2281
-oracle_branch_upper_bound combined_stress mean_success=0.7426 ci95=0.0152 tail=0.2574
+Paper 114 embodied retrieval-augmented control local evidence rebuild
+Design: 5 tasks x 7 mechanism regimes x 5 corpus/domain splits x 9 methods, 7 seeds, 84 rollout episodes per group.
+Terminal decision: STRONG_REVISE
+Strongest non-oracle baseline under combined stress: conformal_retrieval_filter
+Proposed combined-stress success: 0.665 +/- 0.008
+Strongest baseline combined-stress success: 0.562 +/- 0.008
+Pairwise proposed-minus-strongest success diff: 0.103 +/- 0.005; wins=7/7
+Mechanism-precision delta: 0.085
+Incompatible-retrieval delta: -0.083
+Damage delta: -0.022
+Query-cost delta: -0.029
+Recovery-success delta: 0.083
+Ablation margin over best removed component (minus_calibration_guard): 0.043
+Gate results:
+- success_margin_ge_0.030: True
+- mechanism_precision_delta_ge_0.030: True
+- incompatible_retrieval_delta_le_-0.020: True
+- damage_delta_le_0: True
+- query_cost_delta_le_0: True
+- recovery_success_delta_ge_0.020: True
+- paired_seed_wins_ge_5: True
+- ablation_margin_ge_0.020: True
+
+Combined-stress ranking:
+- oracle_mechanism_retrieval: success=0.763 +/- 0.007; precision=0.687; incompat=0.056; recovery=0.639; damage=0.045; query=0.184
+- proposed_mechanism_retrieval_controller: success=0.665 +/- 0.008; precision=0.609; incompat=0.119; recovery=0.571; damage=0.065; query=0.240
+- conformal_retrieval_filter: success=0.562 +/- 0.008; precision=0.524; incompat=0.201; recovery=0.488; damage=0.087; query=0.269
+- uncertainty_gated_retrieval: success=0.536 +/- 0.008; precision=0.499; incompat=0.226; recovery=0.469; damage=0.095; query=0.286
+- retrieved_context_behavior_clone: success=0.533 +/- 0.008; precision=0.468; incompat=0.298; recovery=0.428; damage=0.112; query=0.229
+- state_nearest_memory: success=0.497 +/- 0.010; precision=0.451; incompat=0.326; recovery=0.405; damage=0.118; query=0.208
+- visual_nearest_retrieval: success=0.462 +/- 0.010; precision=0.424; incompat=0.372; recovery=0.377; damage=0.129; query=0.196
+- language_episode_retrieval: success=0.405 +/- 0.010; precision=0.395; incompat=0.422; recovery=0.352; damage=0.141; query=0.187
+- no_retrieval_controller: success=0.340 +/- 0.008; precision=0.281; incompat=0.247; recovery=0.291; damage=0.124; query=0.088
