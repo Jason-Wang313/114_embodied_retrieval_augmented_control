@@ -1,9 +1,25 @@
 case,expected_behavior,observed_failure_mode,lesson
-wrong_mechanism_true_language_match,reject language-near episode,top-1 language retrieval collides,language similarity is not physical compatibility
-hidden_support_topology,retrieve support-matched memory,mechanism precision drops without probing,support topology needs active contact evidence
-actuator_lag_plus_compliance,trigger recovery controller,retrieval alone under-corrects force lag,retrieval must be coupled to recovery control
-visually_near_mechanically_opposite,reject visual-nearest memory,retrieved visual neighbor has opposite contact mode,visual similarity cannot substitute for mechanism indexing
-stale_recovery_memory,discount old recovery episode,old recovery succeeds in source embodiment but jams the target gripper,retrieval memories need embodiment-age and actuator-context checks
-partial_observability_alias,query or probe before retrieving,two mechanisms share the same observed state until contact,retrieval controller needs active disambiguation under hidden mechanism state
-overconformal_rejection,retain useful mechanism-near memories,conservative filter rejects helpful recovery cases under high shift,risk filters should not erase mechanism coverage
-oracle_gap_under_compound_shift,approach oracle mechanism retrieval,oracle remains substantially better under maximum mechanism mismatch,local retrieval index is useful but not saturated
+language_near_mechanism_wrong,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+visual_near_contact_opposite,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+hidden_support_topology,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+actuator_lag_plus_compliance,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+stale_recovery_memory,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+partial_observability_alias,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+overconformal_rejection,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+oracle_gap_under_compound_shift,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+sparse_corpus_extrapolation,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+tool_geometry_alias,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+granular_contact_instability,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+bimanual_force_phase_error,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+mobile_base_micro_collision,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+cloth_edge_unmodeled_fold,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+false_recovery_trigger,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+failure_memory_overfit,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+domain_randomization_conflict,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+query_latency_cliff,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+calibration_under_shift,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+retrieval_corpus_poisoning,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+contact_sensor_dropout,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+rare_mechanism_no_neighbor,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+planner_retrieval_disagreement,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated
+real_robot_gap,detect or avoid the retrieval-control boundary,local evidence exposes a mechanism-specific failure mode,submission readiness requires this boundary to be handled and externally validated

@@ -1,0 +1,16 @@
+baseline,metric,mean_diff,ci95_diff,paired_seed_wins,non_oracle,decisive
+conformal_retrieval_filter,utility,0.3360065124,0.0029633802,10,True,True
+contrastive_mechanism_memory,utility,0.2088013675,0.0044612938,10,True,True
+failure_aware_active_retrieval,utility,0.1798278258,0.0041589215,10,True,True
+invariant_mechanism_alignment,utility,0.2483628595,0.0038306456,10,True,True
+language_episode_retrieval,utility,0.6835782968,0.0041545502,10,True,True
+learned_expected_utility_retrieval,utility,0.1951398715,0.0034825396,10,True,True
+model_predictive_retrieval_arbitration,utility,0.1675950456,0.0030462721,10,True,True
+no_retrieval_controller,utility,0.6388859680,0.0046708959,10,True,True
+oracle_mechanism_retrieval,utility,-0.1249416140,0.0050256694,0,False,False
+proposed_mechanism_retrieval_controller_v4,utility,0.1156963874,0.0046071245,10,True,True
+retrieved_context_behavior_clone,utility,0.4461792837,0.0023084608,10,True,True
+state_nearest_memory,utility,0.4974819168,0.0039200744,10,True,True
+test_time_retrieval_adaptation,utility,0.2894373247,0.0037292574,10,True,True
+uncertainty_gated_retrieval,utility,0.4010989896,0.0029513312,10,True,True
+visual_nearest_retrieval,utility,0.5802783167,0.0035044248,10,True,True

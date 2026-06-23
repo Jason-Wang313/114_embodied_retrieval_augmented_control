@@ -1,19 +1,23 @@
 # Child Status 114
 
-Current stage: ICLR main gate terminal
-Last update: 2026-06-15 19:40:14 +0100
+Current stage: expanded-standard v5 terminal
+Last update: 2026-06-23 15:01:17 +08:00
 PDF: C:/Users/wangz/Downloads/114.pdf
-PDF SHA256: A30F44414A79FF28C28E2232B2A4C89262A3277C5B20D931861EC829BF923B4E
+PDF SHA256: 83CFE32A3356ADD3EF335B5CA4966F972320D65B548118A1BA4C1716A2701412
+PDF pages: 25
+PDF bytes: 785264
 GitHub: https://github.com/Jason-Wang313/114_embodied_retrieval_augmented_control
-Submission-hardening version: v4.1
+Submission-hardening version: v5_expanded
 Terminal decision: STRONG_REVISE
 ICLR main ready: no
 
 Evidence digest:
-- Proposed mechanism retrieval beats `conformal_retrieval_filter` by `0.103 +/- 0.005` combined-stress success with `7/7` paired-seed wins.
-- Proposed success is `0.665 +/- 0.008`; strongest baseline success is `0.562 +/- 0.008`.
-- Mechanism precision and recovery success increase; incompatible retrievals, damage, and query cost decrease.
-- Best ablation trails the full method by `0.043` success.
-- Stress sweep now covers `5,880` task/regime/seed rows and `24` aggregate rows.
-- Failure-case documentation now covers `8` embodied-retrieval boundaries.
-- Remaining blocker: no real robot or external high-fidelity benchmark validation.
+- Proposed method `action_conditioned_mechanism_retrieval_v5` beats strongest non-oracle `proposed_mechanism_retrieval_controller_v4`.
+- Hard success is `0.72389` proposed vs `0.66339` strongest non-oracle.
+- Hard utility is `0.79699` proposed vs `0.68129` strongest non-oracle.
+- Paired hard utility wins are `10/10`.
+- Mechanism precision and recovery success increase; incompatible retrieval, damage, query cost, and regret decrease.
+- Evidence scale is 102,400 main cells, 8,000 ablation cells, 48,000 stress cells, 51,200 fixed-risk cells, and 24 failure cases.
+- Strict fixed-risk budget is `0.10000`, coverage is `0.59500`, breach is `0.00000`, and utility margin is `+0.20791`.
+- All frozen local gates pass.
+- Remaining blocker: no real robot retrieval-control rollouts, accepted high-fidelity retrieval-control simulation, trained checkpoints, calibrated mechanism logs, released corpus/checkpoint, or rollout videos.

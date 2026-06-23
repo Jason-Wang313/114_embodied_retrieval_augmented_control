@@ -2,16 +2,20 @@
 
 ## Reviewer Attack: This is just RAG for robots.
 
-Response: The evidence focuses on physical mechanism compatibility. Language and visual retrieval fail badly under combined mechanism shift (`0.405` and `0.462` success). The proposed mechanism-indexed controller reaches `0.665 +/- 0.008`.
+Response: The v5 evidence focuses on physical mechanism compatibility, not generic semantic retrieval. The comparator set includes language, visual, state-nearest, behavior-clone, uncertainty, conformal, invariant, contrastive, learned-utility, model-predictive, active-retrieval, retained v4, proposed v5, and oracle methods. The strongest non-oracle baseline is the retained v4 controller, not a weak RAG baseline.
 
-## Reviewer Attack: A conformal retrieval filter should be enough.
+## Reviewer Attack: The previous mechanism retrieval controller should be enough.
 
-Response: The strongest non-oracle baseline is `conformal_retrieval_filter` at `0.562 +/- 0.008`. The proposed method reaches `0.665 +/- 0.008`, a paired `0.103 +/- 0.005` gain with `7/7` seed wins, while also lowering incompatible retrieval, damage, and query cost.
+Response: The retained v4 controller reaches hard success `0.66339` and utility `0.68129`. The v5 method reaches hard success `0.72389` and utility `0.79699`, wins `10/10` paired hard utility seeds, improves mechanism precision and recovery, and lowers incompatible retrieval, damage, query cost, and regret.
 
 ## Reviewer Attack: The mechanism index may be decorative.
 
-Response: Ablations reject that. The full method reaches `0.669 +/- 0.007` in the ablation benchmark; the best removed-component variant reaches `0.626 +/- 0.008`, leaving a `0.043` success gap.
+Response: Ablations reject that locally. The best ablation trails the full method by `0.03768` success and `0.10562` utility. Removing mechanism indexing, action-conditioned keys, counterfactual rejection, recovery, calibration, stale-memory downweighting, active disambiguation, or retrieval diversity weakens the package.
+
+## Reviewer Attack: The fixed-risk result is too easy.
+
+Response: The strict fixed-risk budget was set to `0.10000`, not the easier `0.12000`. At this stricter budget, v5 coverage is `0.59500`, breach is `0.00000`, and utility margin is `+0.20791`, so the test forces abstention/fallback rather than rubber-stamping every retrieval.
 
 ## Reviewer Attack: The paper is not ready for ICLR main.
 
-Response: Agreed. The honest decision is `STRONG_REVISE`, not ready. The v4.1 evidence has 5,880 detailed stress rows and 8 failure cases, but it still needs real robot or external high-fidelity validation and a released retrieval corpus/checkpoints.
+Response: Agreed. The honest decision is `STRONG_REVISE`, not ready. The v5 evidence is locally stronger, with 102,400 main cells, 8,000 ablation cells, 48,000 stress cells, 51,200 fixed-risk cells, 24 failure cases, a 25-page PDF, and a validator. It still needs real robot or accepted high-fidelity retrieval-control validation, trained checkpoints, calibrated mechanism logs, released corpus/checkpoint, rollout videos, and external-baseline confirmation.

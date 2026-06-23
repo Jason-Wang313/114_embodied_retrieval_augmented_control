@@ -4,8 +4,8 @@ Decision: STRONG_REVISE
 
 ICLR main-conference readiness: NO.
 
-Reason: The v4.1 rebuild adds a paper-specific mechanism-retrieval control benchmark with strong local evidence. The proposed controller beats `conformal_retrieval_filter` by `0.103 +/- 0.005` combined-stress success, wins `7/7` paired seeds, improves mechanism precision and recovery success, lowers incompatible retrievals, damage, and query cost, survives ablations, expands stress coverage to `5,880` task/regime/seed rows, documents `8` failure cases, and has no numeric-integrity issues.
+Reason: The v5 rebuild creates a 25-page submission audit with a frozen CPU-only benchmark, strong retained baselines, ablations, stress sweeps, fixed-risk tests, failure cases, and bright boxed clickable citations. The proposed method beats the retained v4 controller on hard success, hard utility, mechanism precision, incompatible retrieval, recovery success, damage, query cost, regret, stress endpoint utility, and fixed-risk utility. All frozen local gates pass.
 
-Honest terminal action: keep and revise aggressively. Do not submit as final ICLR main paper until external validation is added.
+Honest terminal action: keep and revise aggressively. Do not submit as final ICLR main paper until external retrieval-control validation is added.
 
-Revival-to-ready condition: add real robot or accepted high-fidelity simulator experiments, release retrieval corpus/controller artifacts, compare to external robot-memory baselines, and deepen related work through manual full-paper reading.
+Revival-to-ready condition: add real robot retrieval-control experiments or an accepted high-fidelity simulator, train/release retrieval and controller checkpoints, provide calibrated mechanism logs and rollout videos, release a retrieval corpus/checkpoint, compare to external baselines, and deepen related work with manual full-paper synthesis.

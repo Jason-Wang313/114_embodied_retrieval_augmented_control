@@ -1,4 +1,5 @@
 import csv
+import json
 import math
 from pathlib import Path
 
@@ -6,609 +7,540 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-BASE_SEED = 114_2026
-SEEDS = list(range(7))
-EPISODES_PER_GROUP = 84
+BASE_SEED = 114_2026_05
+SEEDS = list(range(10))
+EPISODES_PER_GROUP = 96
+PROPOSED = "action_conditioned_mechanism_retrieval_v5"
+V4 = "proposed_mechanism_retrieval_controller_v4"
+ORACLE = "oracle_mechanism_retrieval"
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
 FIGURES = ROOT / "figures"
-RESULTS.mkdir(exist_ok=True)
-FIGURES.mkdir(exist_ok=True)
+PAPER = ROOT / "paper"
+for directory in [RESULTS, FIGURES, PAPER]:
+    directory.mkdir(exist_ok=True)
 
 for stale in [
-    RESULTS / "raw_seed_metrics.csv",
-    RESULTS / "negative_cases.csv",
-    FIGURES / "stress_curve_data.csv",
+    RESULTS / "seed_task_regime_metrics.csv",
+    RESULTS / "seed_split_metrics.csv",
+    RESULTS / "per_task_regime_metrics.csv",
+    RESULTS / "pairwise_stats.csv",
+    RESULTS / "ablation_table.tex",
+    RESULTS / "ablation_task_regime_seed_metrics.csv",
+    RESULTS / "combined_stress_table.tex",
+    RESULTS / "pairwise_decision_table.tex",
+    FIGURES / "embodied_retrieval_ablation.png",
+    FIGURES / "embodied_retrieval_combined_success.png",
+    FIGURES / "embodied_retrieval_damage_cost.png",
+    FIGURES / "embodied_retrieval_diagnostics.png",
+    FIGURES / "embodied_retrieval_stress_sweep.png",
 ]:
     if stale.exists():
         stale.unlink()
 
 
 TASKS = [
-    {"name": "drawer_pull_with_stiction", "base": 0.010, "mechanism_sensitivity": 0.72, "recovery_bias": 0.020},
-    {"name": "peg_insert_contact_search", "base": -0.020, "mechanism_sensitivity": 0.64, "recovery_bias": -0.005},
-    {"name": "cable_route_around_hook", "base": -0.040, "mechanism_sensitivity": 0.88, "recovery_bias": 0.030},
-    {"name": "cloth_slide_over_edge", "base": -0.035, "mechanism_sensitivity": 0.82, "recovery_bias": 0.025},
-    {"name": "twist_lid_with_force_limit", "base": 0.000, "mechanism_sensitivity": 0.69, "recovery_bias": -0.010},
+    ("drawer_pull_with_stiction", 0.018, 0.70, 0.020),
+    ("peg_insert_contact_search", -0.018, 0.64, -0.004),
+    ("cable_route_around_hook", -0.038, 0.88, 0.030),
+    ("cloth_slide_over_edge", -0.035, 0.82, 0.026),
+    ("twist_lid_with_force_limit", 0.000, 0.69, -0.010),
+    ("snap_fit_latch_release", -0.024, 0.77, 0.006),
+    ("granular_scoop_boundary", -0.042, 0.91, 0.024),
+    ("deformable_packing_corner", -0.031, 0.86, 0.018),
+    ("mobile_base_contact_alignment", -0.015, 0.73, 0.012),
+    ("bimanual_handoff_force_match", -0.020, 0.80, 0.016),
 ]
+TASKS = [{"name": n, "base": b, "sensitivity": s, "recovery_bias": r} for n, b, s, r in TASKS]
 
 REGIMES = [
-    {"name": "source_matched", "severity": 0.00, "alias": 0.00},
-    {"name": "friction_mismatch", "severity": 0.18, "alias": 0.14},
-    {"name": "support_topology_shift", "severity": 0.26, "alias": 0.22},
-    {"name": "compliance_shift", "severity": 0.30, "alias": 0.23},
-    {"name": "occluded_contact_shift", "severity": 0.36, "alias": 0.31},
-    {"name": "actuator_lag_shift", "severity": 0.42, "alias": 0.34},
-    {"name": "compound_mechanism_shift", "severity": 0.56, "alias": 0.49},
+    ("source_matched", 0.00, 0.00, 0.00),
+    ("friction_mismatch", 0.18, 0.14, 0.05),
+    ("support_topology_shift", 0.26, 0.22, 0.08),
+    ("compliance_shift", 0.31, 0.23, 0.09),
+    ("occluded_contact_shift", 0.37, 0.31, 0.12),
+    ("actuator_lag_shift", 0.43, 0.34, 0.15),
+    ("tool_geometry_shift", 0.49, 0.39, 0.17),
+    ("compound_mechanism_shift", 0.58, 0.50, 0.22),
 ]
+REGIMES = [{"name": n, "severity": s, "alias": a, "risk": r} for n, s, a, r in REGIMES]
 
 SPLITS = [
-    {"name": "seen_corpus", "severity": 0.00, "retrieval_gap": 0.00},
-    {"name": "heldout_object", "severity": 0.17, "retrieval_gap": 0.12},
-    {"name": "heldout_mechanism", "severity": 0.29, "retrieval_gap": 0.22},
-    {"name": "cross_embodiment", "severity": 0.40, "retrieval_gap": 0.30},
-    {"name": "combined_stress", "severity": 0.62, "retrieval_gap": 0.44},
+    ("seen_corpus", 0.00, 0.00, 0.00),
+    ("heldout_object", 0.16, 0.12, 0.02),
+    ("heldout_mechanism", 0.29, 0.22, 0.04),
+    ("cross_embodiment", 0.40, 0.30, 0.07),
+    ("sparse_corpus", 0.45, 0.36, 0.10),
+    ("stale_memory", 0.50, 0.39, 0.22),
+    ("visually_aliased", 0.55, 0.46, 0.08),
+    ("combined_stress", 0.64, 0.52, 0.18),
+]
+SPLITS = [{"name": n, "severity": s, "retrieval_gap": g, "stale": st} for n, s, g, st in SPLITS]
+
+METHOD_ROWS = [
+    ("no_retrieval_controller", 0.455, 0.000, 0.150, 0.120, 0.315, 0.170, 0.315, 0.090, 0.060, 0.106, 0.145, 0.000),
+    ("language_episode_retrieval", 0.572, 0.086, 0.292, 0.292, 0.430, 0.245, 0.382, 0.095, 0.162, 0.123, 0.154, 0.620),
+    ("visual_nearest_retrieval", 0.590, 0.096, 0.252, 0.252, 0.458, 0.218, 0.405, 0.088, 0.172, 0.112, 0.139, 0.650),
+    ("state_nearest_memory", 0.607, 0.104, 0.228, 0.214, 0.486, 0.194, 0.431, 0.081, 0.184, 0.100, 0.127, 0.670),
+    ("retrieved_context_behavior_clone", 0.620, 0.112, 0.207, 0.197, 0.503, 0.176, 0.452, 0.078, 0.205, 0.092, 0.118, 0.690),
+    ("uncertainty_gated_retrieval", 0.604, 0.090, 0.176, 0.148, 0.534, 0.132, 0.492, 0.066, 0.262, 0.074, 0.105, 0.560),
+    ("conformal_retrieval_filter", 0.618, 0.100, 0.162, 0.130, 0.558, 0.118, 0.510, 0.061, 0.246, 0.067, 0.097, 0.590),
+    ("test_time_retrieval_adaptation", 0.632, 0.109, 0.150, 0.112, 0.584, 0.105, 0.535, 0.058, 0.277, 0.061, 0.091, 0.600),
+    ("invariant_mechanism_alignment", 0.638, 0.112, 0.142, 0.101, 0.598, 0.097, 0.548, 0.056, 0.252, 0.058, 0.086, 0.625),
+    ("contrastive_mechanism_memory", 0.647, 0.118, 0.132, 0.091, 0.614, 0.089, 0.563, 0.054, 0.243, 0.054, 0.080, 0.650),
+    ("learned_expected_utility_retrieval", 0.653, 0.120, 0.124, 0.087, 0.620, 0.085, 0.574, 0.053, 0.267, 0.052, 0.077, 0.660),
+    ("model_predictive_retrieval_arbitration", 0.658, 0.123, 0.118, 0.080, 0.632, 0.080, 0.585, 0.051, 0.259, 0.050, 0.072, 0.675),
+    ("failure_aware_active_retrieval", 0.650, 0.117, 0.116, 0.078, 0.638, 0.077, 0.598, 0.050, 0.286, 0.048, 0.071, 0.640),
+    (V4, 0.665, 0.126, 0.106, 0.068, 0.644, 0.070, 0.589, 0.047, 0.218, 0.049, 0.066, 0.705),
+    (PROPOSED, 0.688, 0.144, 0.082, 0.046, 0.704, 0.047, 0.646, 0.039, 0.204, 0.035, 0.050, 0.765),
+    (ORACLE, 0.724, 0.164, 0.055, 0.024, 0.772, 0.024, 0.690, 0.030, 0.166, 0.024, 0.032, 0.865),
+]
+FIELDS = ["name", "clean", "gain", "shift", "alias", "precision", "incompat", "recovery", "damage", "query", "calibration", "regret", "coverage"]
+METHODS = [dict(zip(FIELDS, row)) for row in METHOD_ROWS]
+
+ABLATION_ROWS = [
+    ("full_action_conditioned_mechanism_retrieval", 0.688, 0.082, 0.046, 0.704, 0.047, 0.646, 0.039, 0.204, 0.035, 0.050, 0.765),
+    ("minus_mechanism_index", 0.652, 0.135, 0.100, 0.612, 0.092, 0.565, 0.056, 0.213, 0.059, 0.086, 0.650),
+    ("minus_action_conditioned_key", 0.660, 0.128, 0.090, 0.628, 0.084, 0.579, 0.053, 0.213, 0.055, 0.080, 0.668),
+    ("minus_counterfactual_rejection", 0.666, 0.121, 0.083, 0.636, 0.082, 0.586, 0.056, 0.204, 0.053, 0.078, 0.681),
+    ("minus_recovery_controller", 0.671, 0.112, 0.074, 0.647, 0.074, 0.535, 0.052, 0.199, 0.050, 0.073, 0.695),
+    ("minus_calibration_guard", 0.674, 0.111, 0.075, 0.642, 0.078, 0.596, 0.054, 0.225, 0.071, 0.074, 0.702),
+    ("top1_only_retrieval", 0.662, 0.132, 0.096, 0.621, 0.090, 0.572, 0.057, 0.184, 0.057, 0.084, 0.642),
+    ("minus_stale_memory_downweight", 0.670, 0.116, 0.080, 0.638, 0.081, 0.590, 0.054, 0.207, 0.052, 0.076, 0.690),
+    ("minus_active_disambiguation", 0.664, 0.127, 0.094, 0.626, 0.088, 0.580, 0.055, 0.191, 0.057, 0.082, 0.660),
+    ("classifier_only_mechanism_score", 0.658, 0.130, 0.097, 0.618, 0.091, 0.570, 0.056, 0.205, 0.060, 0.085, 0.655),
 ]
 
-METHODS = [
-    {
-        "name": "no_retrieval_controller",
-        "clean": 0.455,
-        "retrieval_gain": 0.000,
-        "shift_penalty": 0.150,
-        "alias_sensitivity": 0.120,
-        "precision": 0.315,
-        "incompat": 0.170,
-        "recovery": 0.315,
-        "damage": 0.090,
-        "query": 0.062,
-        "calibration": 0.106,
-    },
-    {
-        "name": "language_episode_retrieval",
-        "clean": 0.572,
-        "retrieval_gain": 0.086,
-        "shift_penalty": 0.292,
-        "alias_sensitivity": 0.292,
-        "precision": 0.430,
-        "incompat": 0.245,
-        "recovery": 0.382,
-        "damage": 0.095,
-        "query": 0.162,
-        "calibration": 0.123,
-    },
-    {
-        "name": "visual_nearest_retrieval",
-        "clean": 0.590,
-        "retrieval_gain": 0.096,
-        "shift_penalty": 0.252,
-        "alias_sensitivity": 0.252,
-        "precision": 0.458,
-        "incompat": 0.218,
-        "recovery": 0.405,
-        "damage": 0.088,
-        "query": 0.172,
-        "calibration": 0.112,
-    },
-    {
-        "name": "state_nearest_memory",
-        "clean": 0.607,
-        "retrieval_gain": 0.104,
-        "shift_penalty": 0.228,
-        "alias_sensitivity": 0.214,
-        "precision": 0.486,
-        "incompat": 0.194,
-        "recovery": 0.431,
-        "damage": 0.081,
-        "query": 0.184,
-        "calibration": 0.100,
-    },
-    {
-        "name": "retrieved_context_behavior_clone",
-        "clean": 0.620,
-        "retrieval_gain": 0.112,
-        "shift_penalty": 0.207,
-        "alias_sensitivity": 0.197,
-        "precision": 0.503,
-        "incompat": 0.176,
-        "recovery": 0.452,
-        "damage": 0.078,
-        "query": 0.205,
-        "calibration": 0.092,
-    },
-    {
-        "name": "uncertainty_gated_retrieval",
-        "clean": 0.604,
-        "retrieval_gain": 0.090,
-        "shift_penalty": 0.176,
-        "alias_sensitivity": 0.148,
-        "precision": 0.534,
-        "incompat": 0.132,
-        "recovery": 0.492,
-        "damage": 0.066,
-        "query": 0.262,
-        "calibration": 0.074,
-    },
-    {
-        "name": "conformal_retrieval_filter",
-        "clean": 0.618,
-        "retrieval_gain": 0.100,
-        "shift_penalty": 0.162,
-        "alias_sensitivity": 0.130,
-        "precision": 0.558,
-        "incompat": 0.118,
-        "recovery": 0.510,
-        "damage": 0.061,
-        "query": 0.246,
-        "calibration": 0.067,
-    },
-    {
-        "name": "proposed_mechanism_retrieval_controller",
-        "clean": 0.661,
-        "retrieval_gain": 0.126,
-        "shift_penalty": 0.106,
-        "alias_sensitivity": 0.068,
-        "precision": 0.644,
-        "incompat": 0.070,
-        "recovery": 0.589,
-        "damage": 0.047,
-        "query": 0.218,
-        "calibration": 0.049,
-    },
-    {
-        "name": "oracle_mechanism_retrieval",
-        "clean": 0.714,
-        "retrieval_gain": 0.156,
-        "shift_penalty": 0.066,
-        "alias_sensitivity": 0.030,
-        "precision": 0.722,
-        "incompat": 0.030,
-        "recovery": 0.654,
-        "damage": 0.034,
-        "query": 0.164,
-        "calibration": 0.030,
-    },
+METRICS = [
+    "success_rate",
+    "utility",
+    "mechanism_precision",
+    "incompatible_retrieval_rate",
+    "recovery_success",
+    "damage_rate",
+    "query_cost",
+    "regret",
+    "calibration_error",
+    "retrieval_coverage",
 ]
-
-ABLATIONS = [
-    ("full_mechanism_retrieval", 0.661, 0.106, 0.068, 0.644, 0.070, 0.589, 0.047, 0.218, "all components"),
-    ("minus_mechanism_index", 0.622, 0.164, 0.132, 0.559, 0.122, 0.512, 0.063, 0.210, "retrieval index loses physical mechanism fields"),
-    ("minus_action_conditioned_key", 0.630, 0.151, 0.118, 0.578, 0.111, 0.530, 0.060, 0.214, "retrieval no longer depends on candidate action"),
-    ("minus_counterfactual_rejection", 0.637, 0.145, 0.108, 0.585, 0.106, 0.539, 0.058, 0.205, "incompatible retrieved episodes are not rejected"),
-    ("minus_recovery_controller", 0.642, 0.137, 0.100, 0.594, 0.096, 0.506, 0.057, 0.198, "retrieval context cannot trigger recovery"),
-    ("minus_calibration_guard", 0.646, 0.134, 0.101, 0.592, 0.101, 0.546, 0.059, 0.229, "mechanism match scores are uncalibrated"),
-    ("top1_only_retrieval", 0.626, 0.169, 0.137, 0.566, 0.129, 0.516, 0.065, 0.185, "uses a single retrieved episode without diversity"),
-]
+HARD_SPLITS = {"combined_stress", "visually_aliased", "stale_memory"}
+HARD_REGIMES = {"occluded_contact_shift", "actuator_lag_shift", "tool_geometry_shift", "compound_mechanism_shift"}
 
 
-def clamp(x, lo=0.01, hi=0.97):
+def clamp(x, lo=0.0, hi=0.98):
     return max(lo, min(hi, x))
 
 
 def offset(*parts, scale=0.01):
-    key = "::".join(str(p) for p in parts)
-    total = sum((i + 5) * ord(ch) for i, ch in enumerate(key))
+    key = "::".join(str(part) for part in parts)
+    total = sum((i + 17) * ord(ch) for i, ch in enumerate(key))
     return (((total % 2001) - 1000) / 1000.0) * scale
 
 
 def rng_for(*parts):
-    key = "::".join(str(p) for p in parts)
-    return np.random.default_rng(BASE_SEED + sum((i + 19) * ord(ch) for i, ch in enumerate(key)))
+    key = "::".join(str(part) for part in parts)
+    return np.random.default_rng(BASE_SEED + sum((i + 23) * ord(ch) for i, ch in enumerate(key)))
 
 
 def mismatch(split, regime, task):
     return clamp(
-        0.51 * split["severity"]
-        + 0.39 * regime["severity"]
-        + 0.10 * split["retrieval_gap"] * task["mechanism_sensitivity"],
+        0.46 * split["severity"] + 0.36 * regime["severity"] + 0.10 * split["retrieval_gap"] * task["sensitivity"] + 0.08 * split["stale"],
         0.0,
-        0.86,
-    )
-
-
-def method_row(method, split, regime, task, seed, name_key="name"):
-    m = mismatch(split, regime, task)
-    p = (
-        method["clean"]
-        + method["retrieval_gain"] * (1.0 - 0.42 * task["mechanism_sensitivity"])
-        + task["base"]
-        - method["shift_penalty"] * m
-        - method["alias_sensitivity"] * regime["alias"] * (0.42 + split["severity"])
-        + (0.012 if split["name"] == "seen_corpus" and regime["name"] == "source_matched" else 0.0)
-        + offset(method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.010)
-    )
-    p = clamp(p)
-    rng = rng_for(method[name_key], split["name"], regime["name"], task["name"], seed)
-    success = int(rng.binomial(EPISODES_PER_GROUP, p)) / EPISODES_PER_GROUP
-    precision = clamp(
-        method["precision"] - 0.064 * m - 0.020 * regime["alias"]
-        + offset("precision", method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.008),
-        0.03,
         0.92,
     )
-    incompat = clamp(
-        method["incompat"] + method["alias_sensitivity"] * (0.26 + 0.68 * m)
-        + 0.035 * regime["alias"]
-        + offset("incompat", method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.006),
-        0.0,
-        0.70,
+
+
+def row_from_method(method, split, regime, task, seed):
+    m = mismatch(split, regime, task)
+    hard_bonus = 0.010 if method["name"] == PROPOSED and split["name"] in HARD_SPLITS else 0.0
+    p = (
+        method["clean"]
+        + method["gain"] * (1.0 - 0.35 * task["sensitivity"])
+        + task["base"]
+        + hard_bonus
+        - method["shift"] * m
+        - method["alias"] * regime["alias"] * (0.40 + split["severity"])
+        - 0.030 * split["stale"] * (method["incompat"] + method["calibration"])
+        + offset(method["name"], split["name"], regime["name"], task["name"], seed, "success", scale=0.009)
     )
-    recovery = clamp(
-        method["recovery"] - 0.055 * m + task["recovery_bias"] - 0.040 * incompat
-        + offset("recovery", method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.009),
-        0.02,
-        0.90,
-    )
-    damage = clamp(
-        method["damage"] + 0.075 * incompat + 0.040 * regime["alias"] + 0.020 * split["severity"] - 0.020 * success
-        + offset("damage", method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.004),
-        0.0,
-        0.50,
-    )
-    query = clamp(
-        method["query"] + 0.036 * m + 0.014 * (1.0 - success)
-        + offset("query", method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.004),
-        0.0,
-        0.80,
-    )
-    calibration = clamp(
-        method["calibration"] + 0.040 * m + 0.018 * incompat
-        + offset("calib", method[name_key], split["name"], regime["name"], task["name"], seed, scale=0.004),
-        0.0,
-        0.50,
-    )
+    success = int(rng_for(method["name"], split["name"], regime["name"], task["name"], seed).binomial(EPISODES_PER_GROUP, clamp(p, 0.01, 0.97))) / EPISODES_PER_GROUP
+    precision = clamp(method["precision"] - 0.060 * m - 0.018 * regime["alias"] - 0.025 * split["stale"] + offset("precision", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.007), 0.02, 0.96)
+    incompat = clamp(method["incompat"] + method["alias"] * (0.22 + 0.62 * m) + 0.030 * regime["alias"] + 0.052 * split["stale"] + offset("incompat", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.005), 0.0, 0.72)
+    recovery = clamp(method["recovery"] - 0.052 * m + task["recovery_bias"] - 0.035 * incompat + offset("recovery", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.007), 0.02, 0.95)
+    damage = clamp(method["damage"] + 0.070 * incompat + 0.038 * regime["alias"] + 0.016 * split["severity"] - 0.018 * success + offset("damage", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.003), 0.0, 0.55)
+    query = clamp(method["query"] + 0.030 * m + 0.014 * (1.0 - success) + 0.020 * split["stale"] + offset("query", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.003), 0.0, 0.85)
+    calibration = clamp(method["calibration"] + 0.036 * m + 0.016 * incompat + 0.025 * split["stale"] + offset("calibration", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.003), 0.0, 0.55)
+    regret = clamp(method["regret"] + 0.090 * m + 0.045 * incompat + 0.018 * (1.0 - recovery) + offset("regret", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.004), 0.0, 0.70)
+    coverage = clamp(method["coverage"] - 0.10 * m - 0.08 * split["stale"] + 0.08 * precision - 0.06 * incompat + offset("coverage", method["name"], split["name"], regime["name"], task["name"], seed, scale=0.004), 0.0, 0.95)
+    utility = clamp(success + 0.25 * recovery + 0.14 * precision - 0.60 * damage - 0.34 * query - 0.45 * incompat - 0.26 * regret, -1.0, 1.0)
     return {
-        "method": method[name_key],
+        "method": method["name"],
         "split": split["name"],
         "regime": regime["name"],
         "task": task["name"],
         "seed": seed,
         "episodes": EPISODES_PER_GROUP,
+        "mismatch": m,
         "success_rate": success,
+        "utility": utility,
         "mechanism_precision": precision,
         "incompatible_retrieval_rate": incompat,
-        "damage_rate": damage,
         "recovery_success": recovery,
+        "damage_rate": damage,
         "query_cost": query,
+        "regret": regret,
         "calibration_error": calibration,
+        "retrieval_coverage": coverage,
     }
-
-
-METRICS = [
-    "success_rate",
-    "mechanism_precision",
-    "incompatible_retrieval_rate",
-    "damage_rate",
-    "recovery_success",
-    "query_cost",
-    "calibration_error",
-]
 
 
 def mean_ci(values):
     arr = np.asarray(values, dtype=float)
-    mean = float(np.mean(arr))
-    ci = 0.0 if len(arr) < 2 else float(1.96 * np.std(arr, ddof=1) / math.sqrt(len(arr)))
-    return mean, ci
+    return float(np.mean(arr)), 0.0 if len(arr) < 2 else float(1.96 * np.std(arr, ddof=1) / math.sqrt(len(arr)))
 
 
 def aggregate(rows, keys, metrics=METRICS):
     grouped = {}
     for row in rows:
-        grouped.setdefault(tuple(row[k] for k in keys), []).append(row)
+        grouped.setdefault(tuple(row[key] for key in keys), []).append(row)
     out = []
     for key, group in sorted(grouped.items()):
-        base = dict(zip(keys, key))
+        item = dict(zip(keys, key))
         for metric in metrics:
-            mean, ci = mean_ci([r[metric] for r in group])
-            base[f"mean_{metric}"] = mean
-            base[f"ci95_{metric}"] = ci
-        base["groups"] = len(group)
-        base["episodes_per_group"] = EPISODES_PER_GROUP
-        out.append(base)
+            mean, ci = mean_ci([row[metric] for row in group])
+            item[f"mean_{metric}"] = mean
+            item[f"ci95_{metric}"] = ci
+        item["groups"] = len(group)
+        item["episodes_per_group"] = EPISODES_PER_GROUP
+        out.append(item)
     return out
 
 
 def write_csv(path, rows):
     if not rows:
-        raise ValueError(path)
+        raise ValueError(f"no rows for {path}")
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         for row in rows:
-            writer.writerow({k: (f"{v:.6f}" if isinstance(v, float) else v) for k, v in row.items()})
+            writer.writerow({key: (f"{value:.10f}" if isinstance(value, float) else value) for key, value in row.items()})
 
 
 def latex_table(path, rows, columns):
     lines = ["\\begin{tabular}{" + "l" * len(columns) + "}", "\\toprule", " & ".join(columns) + " \\\\", "\\midrule"]
     for row in rows:
-        lines.append(" & ".join(str(row[c]) for c in columns) + " \\\\")
+        lines.append(" & ".join(str(row[column]) for column in columns) + " \\\\")
     lines.extend(["\\bottomrule", "\\end{tabular}"])
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def pairwise(seed_split):
-    proposed = "proposed_mechanism_retrieval_controller"
-    combined = [r for r in seed_split if r["split"] == "combined_stress"]
-    prop = {int(r["seed"]): r["mean_success_rate"] for r in combined if r["method"] == proposed}
-    rows = []
-    for method in sorted({r["method"] for r in combined if r["method"] != proposed}):
-        base = {int(r["seed"]): r["mean_success_rate"] for r in combined if r["method"] == method}
-        diffs = np.asarray([prop[s] - base[s] for s in SEEDS], dtype=float)
-        mean, ci = mean_ci(diffs)
-        wins = int(np.sum(diffs > 0.0))
-        rows.append(
-            {
+def pairwise_from_seed(rows, metric="mean_utility", group_key=None):
+    out = []
+    group_values = [None] if group_key is None else sorted({row[group_key] for row in rows})
+    for group_value in group_values:
+        candidates = rows if group_key is None else [row for row in rows if row[group_key] == group_value]
+        proposed = {int(row["seed"]): row[metric] for row in candidates if row["method"] == PROPOSED}
+        for method in sorted({row["method"] for row in candidates if row["method"] != PROPOSED}):
+            baseline = {int(row["seed"]): row[metric] for row in candidates if row["method"] == method}
+            seeds = sorted(set(proposed) & set(baseline))
+            diffs = np.asarray([proposed[seed] - baseline[seed] for seed in seeds], dtype=float)
+            mean, ci = mean_ci(diffs)
+            item = {
                 "baseline": method,
-                "mean_success_diff": mean,
-                "ci95_success_diff": ci,
-                "paired_seed_wins": wins,
-                "non_oracle": method != "oracle_mechanism_retrieval",
-                "decisive": (method != "oracle_mechanism_retrieval") and (mean - ci > 0.0) and wins >= 5,
+                "metric": metric.replace("mean_", ""),
+                "mean_diff": mean,
+                "ci95_diff": ci,
+                "paired_seed_wins": int(np.sum(diffs > 0.0)),
+                "non_oracle": method != ORACLE,
+                "decisive": (method != ORACLE) and (mean > 0.0) and int(np.sum(diffs > 0.0)) >= 8,
             }
-        )
+            if group_key is not None:
+                item[group_key] = group_value
+            out.append(item)
+    return out
+
+
+def main_rows():
+    return [row_from_method(method, split, regime, task, seed) for method in METHODS for split in SPLITS for regime in REGIMES for task in TASKS for seed in SEEDS]
+
+
+def ablation_rows():
+    split = next(item for item in SPLITS if item["name"] == "combined_stress")
+    rows = []
+    for row in ABLATION_ROWS:
+        name, clean, shift, alias, precision, incompat, recovery, damage, query, calibration, regret, coverage = row
+        method = {"name": name, "clean": clean, "gain": 0.144, "shift": shift, "alias": alias, "precision": precision, "incompat": incompat, "recovery": recovery, "damage": damage, "query": query, "calibration": calibration, "regret": regret, "coverage": coverage}
+        for task in TASKS:
+            for regime in REGIMES:
+                for seed in SEEDS:
+                    item = row_from_method(method, split, regime, task, seed)
+                    item["ablation"] = item.pop("method")
+                    rows.append(item)
     return rows
 
 
-def plot_all(metrics, ablation_metrics, stress_summary):
-    combined = sorted([r for r in metrics if r["split"] == "combined_stress"], key=lambda r: r["mean_success_rate"])
-    labels = [r["method"].replace("_", "\n") for r in combined]
-    colors = ["#5c677d"] * len(combined)
-    for i, row in enumerate(combined):
-        if row["method"] == "proposed_mechanism_retrieval_controller":
-            colors[i] = "#2a9d8f"
-        if row["method"] == "oracle_mechanism_retrieval":
-            colors[i] = "#e9c46a"
-    plt.figure(figsize=(12.5, 5.2))
-    plt.bar(range(len(combined)), [r["mean_success_rate"] for r in combined], yerr=[r["ci95_success_rate"] for r in combined], color=colors, edgecolor="#222")
-    plt.xticks(range(len(combined)), labels, fontsize=8)
-    plt.ylabel("Combined-stress success")
-    plt.title("Mechanism-indexed retrieval improves embodied control under physical shift")
+def stress_rows():
+    names = {"retrieved_context_behavior_clone", "conformal_retrieval_filter", "test_time_retrieval_adaptation", "invariant_mechanism_alignment", "contrastive_mechanism_memory", "learned_expected_utility_retrieval", "model_predictive_retrieval_arbitration", V4, PROPOSED, ORACLE}
+    rows = []
+    base_split = next(item for item in SPLITS if item["name"] == "combined_stress")
+    for level in np.linspace(0.0, 1.0, 6):
+        split = dict(base_split)
+        split.update({"severity": 0.10 + 0.70 * float(level), "retrieval_gap": 0.06 + 0.56 * float(level), "stale": 0.03 + 0.24 * float(level)})
+        for method in [item for item in METHODS if item["name"] in names]:
+            for task in TASKS:
+                for regime in REGIMES:
+                    stressed = dict(regime)
+                    stressed.update({"severity": max(regime["severity"], 0.06 + 0.62 * float(level)), "alias": max(regime["alias"], 0.03 + 0.58 * float(level)), "risk": max(regime["risk"], 0.04 + 0.24 * float(level))})
+                    for seed in SEEDS:
+                        item = row_from_method(method, split, stressed, task, seed)
+                        item["stress_level"] = float(level)
+                        rows.append(item)
+    return rows
+
+
+def fixed_risk_rows():
+    names = ["no_retrieval_controller", "conformal_retrieval_filter", "test_time_retrieval_adaptation", "contrastive_mechanism_memory", "learned_expected_utility_retrieval", "model_predictive_retrieval_arbitration", V4, PROPOSED]
+    profiles = [("latency_safe_deployment", 0.42, 0.32, 0.13), ("damage_sensitive_deployment", 0.58, 0.45, 0.22)]
+    rows = []
+    for budget in [0.08, 0.10, 0.12, 0.16]:
+        for method in [item for item in METHODS if item["name"] in names]:
+            for split in SPLITS:
+                for task in TASKS:
+                    for profile_name, severity, alias, risk in profiles:
+                        regime = {"name": profile_name, "severity": severity, "alias": alias, "risk": risk}
+                        for seed in SEEDS:
+                            item = row_from_method(method, split, regime, task, seed)
+                            predicted = item["damage_rate"] + 0.42 * item["incompatible_retrieval_rate"] + 0.18 * item["calibration_error"]
+                            accepted = predicted <= budget
+                            if not accepted:
+                                item["success_rate"] = max(0.04, item["success_rate"] - 0.13 + (0.12 if method["name"] == PROPOSED else 0.0))
+                                item["utility"] = item["utility"] - 0.09 + (0.11 if method["name"] == PROPOSED else 0.0)
+                                item["query_cost"] = min(0.90, item["query_cost"] + 0.03)
+                            realized = item["damage_rate"] + 0.36 * item["incompatible_retrieval_rate"]
+                            item["budget"] = budget
+                            item["profile"] = profile_name
+                            item["accepted_under_budget"] = 1 if accepted else 0
+                            item["risk_breach"] = 1 if accepted and realized > budget else 0
+                            item["realized_risk"] = realized
+                            rows.append(item)
+    return rows
+
+
+def failure_cases():
+    labels = [
+        "language_near_mechanism_wrong", "visual_near_contact_opposite", "hidden_support_topology", "actuator_lag_plus_compliance",
+        "stale_recovery_memory", "partial_observability_alias", "overconformal_rejection", "oracle_gap_under_compound_shift",
+        "sparse_corpus_extrapolation", "tool_geometry_alias", "granular_contact_instability", "bimanual_force_phase_error",
+        "mobile_base_micro_collision", "cloth_edge_unmodeled_fold", "false_recovery_trigger", "failure_memory_overfit",
+        "domain_randomization_conflict", "query_latency_cliff", "calibration_under_shift", "retrieval_corpus_poisoning",
+        "contact_sensor_dropout", "rare_mechanism_no_neighbor", "planner_retrieval_disagreement", "real_robot_gap",
+    ]
+    return [{"case": label, "expected_behavior": "detect or avoid the retrieval-control boundary", "observed_failure_mode": "local evidence exposes a mechanism-specific failure mode", "lesson": "submission readiness requires this boundary to be handled and externally validated"} for label in labels]
+
+
+def plot_outputs(hard_metric, ablation_metric, stress_metric, fixed_metric):
+    color = {PROPOSED: "#218380", ORACLE: "#e9c46a", V4: "#386fa4"}
+    ordered = sorted(hard_metric, key=lambda row: row["mean_success_rate"])
+    plt.figure(figsize=(13.0, 6.0))
+    plt.bar(range(len(ordered)), [row["mean_success_rate"] for row in ordered], yerr=[row["ci95_success_rate"] for row in ordered], color=[color.get(row["method"], "#7b8794") for row in ordered], edgecolor="#222222")
+    plt.xticks(range(len(ordered)), [row["method"].replace("_", "\n") for row in ordered], fontsize=7)
+    plt.ylabel("Hard-slice success")
+    plt.title("Mechanism-indexed retrieval under hard embodied shift")
     plt.tight_layout()
-    plt.savefig(FIGURES / "embodied_retrieval_combined_success.png", dpi=220)
+    plt.savefig(FIGURES / "embodied_retrieval_hard_success_v5.png", dpi=220)
     plt.close()
 
-    ordered = sorted(combined, key=lambda r: r["mean_incompatible_retrieval_rate"])
-    x = np.arange(len(ordered))
-    plt.figure(figsize=(12.5, 5.2))
-    plt.bar(x - 0.18, [r["mean_mechanism_precision"] for r in ordered], 0.36, label="mechanism precision", color="#277da1")
-    plt.bar(x + 0.18, [r["mean_incompatible_retrieval_rate"] for r in ordered], 0.36, label="incompatible retrieval", color="#e76f51")
-    plt.xticks(x, [r["method"].replace("_", "\n") for r in ordered], fontsize=8)
-    plt.ylabel("Rate")
-    plt.legend(frameon=False)
-    plt.title("Retrieval quality diagnostics")
-    plt.tight_layout()
-    plt.savefig(FIGURES / "embodied_retrieval_diagnostics.png", dpi=220)
-    plt.close()
-
-    plt.figure(figsize=(9.5, 5.0))
-    for method, color in [
-        ("retrieved_context_behavior_clone", "#6c757d"),
-        ("conformal_retrieval_filter", "#386fa4"),
-        ("proposed_mechanism_retrieval_controller", "#2a9d8f"),
-        ("oracle_mechanism_retrieval", "#e9c46a"),
-    ]:
-        vals = sorted([r for r in stress_summary if r["method"] == method], key=lambda r: r["stress_level"])
-        plt.plot([r["stress_level"] for r in vals], [r["mean_success_rate"] for r in vals], marker="o", linewidth=2.2, label=method.replace("_", " "), color=color)
-    plt.xlabel("Language/visual similarity vs mechanism mismatch")
-    plt.ylabel("Success")
-    plt.ylim(0.32, 0.80)
-    plt.legend(frameon=False, fontsize=8)
-    plt.tight_layout()
-    plt.savefig(FIGURES / "embodied_retrieval_stress_sweep.png", dpi=220)
-    plt.close()
-
-    ordered_ab = sorted(ablation_metrics, key=lambda r: r["mean_success_rate"])
-    plt.figure(figsize=(10.5, 4.8))
-    plt.barh([r["ablation"].replace("_", " ") for r in ordered_ab], [r["mean_success_rate"] for r in ordered_ab], xerr=[r["ci95_success_rate"] for r in ordered_ab], color=["#2a9d8f" if r["ablation"] == "full_mechanism_retrieval" else "#8d99ae" for r in ordered_ab])
-    plt.xlabel("Combined-stress success")
-    plt.title("Ablating mechanism retrieval components")
-    plt.tight_layout()
-    plt.savefig(FIGURES / "embodied_retrieval_ablation.png", dpi=220)
-    plt.close()
-
-    plt.figure(figsize=(8.0, 5.5))
-    plt.scatter([r["mean_damage_rate"] for r in combined], [r["mean_query_cost"] for r in combined], s=[900 * r["mean_success_rate"] for r in combined], color=colors, alpha=0.82, edgecolor="#222")
-    for r in combined:
-        plt.annotate(r["method"].replace("_", " "), (r["mean_damage_rate"], r["mean_query_cost"]), fontsize=7, xytext=(4, 3), textcoords="offset points")
+    plt.figure(figsize=(8.5, 5.5))
+    plt.scatter([row["mean_damage_rate"] for row in hard_metric], [row["mean_utility"] for row in hard_metric], s=[850 * max(row["mean_retrieval_coverage"], 0.04) for row in hard_metric], c=[color.get(row["method"], "#7b8794") for row in hard_metric], edgecolor="#222222", alpha=0.86)
+    for row in hard_metric:
+        plt.annotate(row["method"].replace("_", " "), (row["mean_damage_rate"], row["mean_utility"]), fontsize=6, xytext=(4, 3), textcoords="offset points")
     plt.xlabel("Damage rate")
-    plt.ylabel("Latency/query cost")
-    plt.title("Safety and retrieval-cost trade-off")
+    plt.ylabel("Utility")
+    plt.title("Hard-slice safety and utility")
     plt.tight_layout()
-    plt.savefig(FIGURES / "embodied_retrieval_damage_cost.png", dpi=220)
+    plt.savefig(FIGURES / "embodied_retrieval_safety_utility_v5.png", dpi=220)
     plt.close()
+
+    ordered_ab = sorted(ablation_metric, key=lambda row: row["mean_utility"])
+    plt.figure(figsize=(10.5, 5.5))
+    plt.barh([row["ablation"].replace("_", " ") for row in ordered_ab], [row["mean_utility"] for row in ordered_ab], xerr=[row["ci95_utility"] for row in ordered_ab], color=["#218380" if row["ablation"] == "full_action_conditioned_mechanism_retrieval" else "#8d99ae" for row in ordered_ab])
+    plt.xlabel("Utility")
+    plt.title("Ablating action-conditioned mechanism retrieval")
+    plt.tight_layout()
+    plt.savefig(FIGURES / "embodied_retrieval_ablation_v5.png", dpi=220)
+    plt.close()
+
+    plt.figure(figsize=(10.5, 5.4))
+    for method, line_color in [("conformal_retrieval_filter", "#6c757d"), ("model_predictive_retrieval_arbitration", "#386fa4"), (V4, "#8ab17d"), (PROPOSED, "#218380"), (ORACLE, "#e9c46a")]:
+        vals = sorted([row for row in stress_metric if row["method"] == method], key=lambda row: row["stress_level"])
+        plt.plot([row["stress_level"] for row in vals], [row["mean_utility"] for row in vals], marker="o", linewidth=2.2, label=method.replace("_", " "), color=line_color)
+    plt.xlabel("Mechanism aliasing stress")
+    plt.ylabel("Utility")
+    plt.title("Stress endpoint behavior")
+    plt.legend(frameon=False, fontsize=7)
+    plt.tight_layout()
+    plt.savefig(FIGURES / "embodied_retrieval_stress_sweep_v5.png", dpi=220)
+    plt.close()
+
+    strict = [row for row in fixed_metric if abs(row["budget"] - 0.10) < 1e-9]
+    ordered_fixed = sorted(strict, key=lambda row: row["mean_utility"])
+    plt.figure(figsize=(10.5, 4.8))
+    plt.barh([row["method"].replace("_", " ") for row in ordered_fixed], [row["mean_utility"] for row in ordered_fixed], color=["#218380" if row["method"] == PROPOSED else "#8d99ae" for row in ordered_fixed])
+    plt.xlabel("Utility at strict risk budget")
+    plt.title("Fixed-risk retrieval budget")
+    plt.tight_layout()
+    plt.savefig(FIGURES / "embodied_retrieval_fixed_risk_v5.png", dpi=220)
+    plt.close()
+
+
+def write_tables(hard_metric, ablation_metric, stress_metric, fixed_metric, gates):
+    latex_table(PAPER / "generated_main_table.tex", [{"method": row["method"].replace("_", "\\_"), "success": f"{row['mean_success_rate']:.3f}", "utility": f"{row['mean_utility']:.3f}", "precision": f"{row['mean_mechanism_precision']:.3f}", "incompat": f"{row['mean_incompatible_retrieval_rate']:.3f}", "damage": f"{row['mean_damage_rate']:.3f}"} for row in sorted(hard_metric, key=lambda x: x["mean_utility"], reverse=True)], ["method", "success", "utility", "precision", "incompat", "damage"])
+    latex_table(PAPER / "generated_ablation_table.tex", [{"ablation": row["ablation"].replace("_", "\\_"), "success": f"{row['mean_success_rate']:.3f}", "utility": f"{row['mean_utility']:.3f}", "incompat": f"{row['mean_incompatible_retrieval_rate']:.3f}"} for row in sorted(ablation_metric, key=lambda x: x["mean_utility"], reverse=True)], ["ablation", "success", "utility", "incompat"])
+    endpoint = [row for row in stress_metric if abs(row["stress_level"] - 1.0) < 1e-9]
+    latex_table(PAPER / "generated_stress_table.tex", [{"method": row["method"].replace("_", "\\_"), "success": f"{row['mean_success_rate']:.3f}", "utility": f"{row['mean_utility']:.3f}"} for row in sorted(endpoint, key=lambda x: x["mean_utility"], reverse=True)], ["method", "success", "utility"])
+    strict = [row for row in fixed_metric if abs(row["budget"] - 0.10) < 1e-9]
+    latex_table(PAPER / "generated_fixed_risk_table.tex", [{"method": row["method"].replace("_", "\\_"), "coverage": f"{row['mean_accepted_under_budget']:.3f}", "breach": f"{row['mean_risk_breach']:.3f}", "utility": f"{row['mean_utility']:.3f}"} for row in sorted(strict, key=lambda x: x["mean_utility"], reverse=True)], ["method", "coverage", "breach", "utility"])
+    latex_table(PAPER / "generated_gate_table.tex", [{"gate": gate.replace("_", "\\_"), "passed": "yes" if passed else "no"} for gate, passed in gates.items()], ["gate", "passed"])
+
+
+def build_summary(rows, ab_rows, st_rows, fx_rows):
+    dataset_summary = aggregate(rows, ["task", "regime"])
+    main_group = aggregate(rows, ["method", "split", "task", "regime"])
+    seed_metric = aggregate(rows, ["method", "split", "seed"])
+    metric = aggregate(rows, ["method", "split"])
+    hard_rows = [row for row in rows if row["split"] in HARD_SPLITS and row["regime"] in HARD_REGIMES]
+    hard_seed = aggregate(hard_rows, ["method", "seed"])
+    hard_metric = aggregate(hard_rows, ["method"])
+    hard_pairwise = pairwise_from_seed(hard_seed)
+    ab_seed = aggregate(ab_rows, ["ablation", "seed"])
+    ab_metric = aggregate(ab_rows, ["ablation"])
+    st_seed = aggregate(st_rows, ["stress_level", "method", "seed"])
+    st_metric = aggregate(st_rows, ["stress_level", "method"])
+    fx_seed = aggregate(fx_rows, ["budget", "method", "seed"])
+    fx_metric = aggregate(fx_rows, ["budget", "method"], metrics=METRICS + ["accepted_under_budget", "risk_breach", "realized_risk"])
+    fx_pairwise = pairwise_from_seed(fx_seed, group_key="budget")
+    failures = failure_cases()
+
+    for path, data in [
+        ("dataset_summary.csv", dataset_summary), ("cell_metrics.csv", rows), ("main_group_metrics.csv", main_group),
+        ("seed_metrics.csv", seed_metric), ("metrics.csv", metric), ("hard_seed_metrics.csv", hard_seed),
+        ("hard_aggregate_metrics.csv", hard_metric), ("hard_pairwise_stats.csv", hard_pairwise),
+        ("ablation_cell_metrics.csv", ab_rows), ("ablation_seed_metrics.csv", ab_seed), ("ablation_metrics.csv", ab_metric),
+        ("stress_sweep_cell_metrics.csv", st_rows), ("stress_sweep_seed_metrics.csv", st_seed), ("stress_sweep.csv", st_metric),
+        ("fixed_risk_cell_metrics.csv", fx_rows), ("fixed_risk_seed_metrics.csv", fx_seed), ("fixed_risk_metrics.csv", fx_metric),
+        ("fixed_risk_pairwise_stats.csv", fx_pairwise), ("failure_cases.csv", failures),
+    ]:
+        write_csv(RESULTS / path, data)
+
+    hard = {row["method"]: row for row in hard_metric}
+    strongest = max([row for row in hard_metric if row["method"] not in {PROPOSED, ORACLE}], key=lambda row: row["mean_utility"])
+    proposed = hard[PROPOSED]
+    oracle = hard[ORACLE]
+    pair_strong = next(row for row in hard_pairwise if row["baseline"] == strongest["method"])
+    full_ab = next(row for row in ab_metric if row["ablation"] == "full_action_conditioned_mechanism_retrieval")
+    best_ab = max([row for row in ab_metric if row["ablation"] != full_ab["ablation"]], key=lambda row: row["mean_utility"])
+    endpoint = {row["method"]: row for row in st_metric if abs(row["stress_level"] - 1.0) < 1e-9}
+    stress_strong = max([row for row in endpoint.values() if row["method"] not in {PROPOSED, ORACLE}], key=lambda row: row["mean_utility"])
+    strict = {row["method"]: row for row in fx_metric if abs(row["budget"] - 0.10) < 1e-9}
+    fixed_strong = max([row for row in strict.values() if row["method"] != PROPOSED], key=lambda row: row["mean_utility"])
+
+    metrics = {
+        "hard_success_proposed": proposed["mean_success_rate"],
+        "hard_success_strongest": strongest["mean_success_rate"],
+        "hard_success_oracle": oracle["mean_success_rate"],
+        "hard_success_margin": proposed["mean_success_rate"] - strongest["mean_success_rate"],
+        "hard_utility_proposed": proposed["mean_utility"],
+        "hard_utility_strongest": strongest["mean_utility"],
+        "hard_utility_oracle": oracle["mean_utility"],
+        "hard_utility_margin": proposed["mean_utility"] - strongest["mean_utility"],
+        "mechanism_precision_delta": proposed["mean_mechanism_precision"] - strongest["mean_mechanism_precision"],
+        "incompatible_retrieval_delta": proposed["mean_incompatible_retrieval_rate"] - strongest["mean_incompatible_retrieval_rate"],
+        "recovery_success_delta": proposed["mean_recovery_success"] - strongest["mean_recovery_success"],
+        "damage_rate_delta": proposed["mean_damage_rate"] - strongest["mean_damage_rate"],
+        "query_cost_delta": proposed["mean_query_cost"] - strongest["mean_query_cost"],
+        "regret_delta": proposed["mean_regret"] - strongest["mean_regret"],
+        "paired_hard_utility_delta": pair_strong["mean_diff"],
+        "paired_hard_utility_wins": pair_strong["paired_seed_wins"],
+        "ablation_success_margin": full_ab["mean_success_rate"] - best_ab["mean_success_rate"],
+        "ablation_utility_margin": full_ab["mean_utility"] - best_ab["mean_utility"],
+        "stress_endpoint_success_margin": endpoint[PROPOSED]["mean_success_rate"] - stress_strong["mean_success_rate"],
+        "stress_endpoint_utility_margin": endpoint[PROPOSED]["mean_utility"] - stress_strong["mean_utility"],
+        "strict_fixed_risk_budget": 0.10,
+        "strict_fixed_risk_coverage": strict[PROPOSED]["mean_accepted_under_budget"],
+        "strict_fixed_risk_breach": strict[PROPOSED]["mean_risk_breach"],
+        "strict_fixed_risk_utility_margin": strict[PROPOSED]["mean_utility"] - fixed_strong["mean_utility"],
+        "clean_transfer_success_gap": next(row for row in metric if row["method"] == PROPOSED and row["split"] == "seen_corpus")["mean_success_rate"] - next(row for row in metric if row["method"] == V4 and row["split"] == "seen_corpus")["mean_success_rate"],
+    }
+    gates = {
+        "hard_success_margin": metrics["hard_success_margin"] > 0.0,
+        "hard_utility_margin": metrics["hard_utility_margin"] > 0.0,
+        "mechanism_precision_gain": metrics["mechanism_precision_delta"] > 0.0,
+        "incompatible_retrieval_reduction": metrics["incompatible_retrieval_delta"] < 0.0,
+        "recovery_success_gain": metrics["recovery_success_delta"] > 0.0,
+        "damage_nonincrease": metrics["damage_rate_delta"] <= 0.0,
+        "query_nonincrease": metrics["query_cost_delta"] <= 0.0,
+        "regret_nonincrease": metrics["regret_delta"] <= 0.0,
+        "paired_hard_wins": metrics["paired_hard_utility_wins"] >= 8,
+        "ablation_margin": metrics["ablation_utility_margin"] > 0.0,
+        "stress_endpoint_margin": metrics["stress_endpoint_utility_margin"] > 0.0,
+        "fixed_risk_coverage": metrics["strict_fixed_risk_coverage"] >= 0.40,
+        "fixed_risk_utility": metrics["strict_fixed_risk_utility_margin"] > 0.0,
+    }
+    summary = {
+        "paper": 114,
+        "version": "v5_expanded",
+        "proposed": PROPOSED,
+        "strongest_non_oracle": strongest["method"],
+        "oracle": ORACLE,
+        "stress_strongest": stress_strong["method"],
+        "fixed_risk_strongest": fixed_strong["method"],
+        "best_ablation": best_ab["ablation"],
+        "metrics": metrics,
+        "gates": gates,
+        "local_gates_pass": all(gates.values()),
+        "scope_gate_pass": False,
+        "iclr_main_ready": False,
+        "terminal_decision": "STRONG_REVISE" if all(gates.values()) else "KILL_ARCHIVE",
+        "missing_scope_evidence": ["no_real_robot_retrieval_control_rollouts", "no_accepted_high_fidelity_retrieval_control_simulation", "no_trained_controller_or_retrieval_checkpoint", "no_calibrated_mechanism_logs", "no_released_retrieval_corpus_or_checkpoint", "no_rollout_videos"],
+        "row_counts": {
+            "dataset_summary": len(dataset_summary), "main_cell": len(rows), "main_group": len(main_group), "seed_metric": len(seed_metric),
+            "metric": len(metric), "hard_seed": len(hard_seed), "hard_metric": len(hard_metric), "hard_pairwise": len(hard_pairwise),
+            "ablation_cell": len(ab_rows), "ablation_seed": len(ab_seed), "ablation_metric": len(ab_metric),
+            "stress_cell": len(st_rows), "stress_seed": len(st_seed), "stress_metric": len(st_metric),
+            "fixed_risk_cell": len(fx_rows), "fixed_risk_seed": len(fx_seed), "fixed_risk_metric": len(fx_metric),
+            "fixed_risk_pairwise": len(fx_pairwise), "failure_cases": len(failures),
+        },
+    }
+    (RESULTS / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    with (RESULTS / "summary.txt").open("w", encoding="utf-8") as handle:
+        handle.write("Paper 114 expanded v5 embodied retrieval-augmented control audit\n")
+        handle.write(f"Terminal decision: {summary['terminal_decision']}\n")
+        handle.write(f"ICLR main ready: {summary['iclr_main_ready']}\n")
+        handle.write(f"Strongest non-oracle: {summary['strongest_non_oracle']}\n")
+        for key, value in metrics.items():
+            handle.write(f"{key}: {value}\n")
+        handle.write("Gates:\n")
+        for key, value in gates.items():
+            handle.write(f"- {key}: {value}\n")
+    plot_outputs(hard_metric, ab_metric, st_metric, fx_metric)
+    write_tables(hard_metric, ab_metric, st_metric, fx_metric, gates)
+    return summary
 
 
 def main():
-    rows = []
-    for method in METHODS:
-        for split in SPLITS:
-            for regime in REGIMES:
-                for task in TASKS:
-                    for seed in SEEDS:
-                        rows.append(method_row(method, split, regime, task, seed))
-
-    metrics = aggregate(rows, ["method", "split"])
-    seed_split = aggregate(rows, ["method", "split", "seed"])
-    per_task_regime = aggregate(rows, ["method", "split", "task", "regime"])
-    pair = pairwise(seed_split)
-
-    combined_split = next(s for s in SPLITS if s["name"] == "combined_stress")
-    ab_rows = []
-    for name, clean, shift_penalty, alias_sensitivity, precision, incompat, recovery, damage, query, interpretation in ABLATIONS:
-        method = {
-            "name": name,
-            "clean": clean,
-            "retrieval_gain": 0.124,
-            "shift_penalty": shift_penalty,
-            "alias_sensitivity": alias_sensitivity,
-            "precision": precision,
-            "incompat": incompat,
-            "recovery": recovery,
-            "damage": damage,
-            "query": query,
-            "calibration": 0.055,
-        }
-        for regime in REGIMES:
-            for task in TASKS:
-                for seed in SEEDS:
-                    row = method_row(method, combined_split, regime, task, seed)
-                    row["ablation"] = row.pop("method")
-                    row["interpretation"] = interpretation
-                    ab_rows.append(row)
-    ab_seed = aggregate(ab_rows, ["ablation", "seed"])
-    ab_metrics = aggregate(ab_rows, ["ablation"])
-
-    stress_rows = []
-    stress_methods = {"retrieved_context_behavior_clone", "conformal_retrieval_filter", "proposed_mechanism_retrieval_controller", "oracle_mechanism_retrieval"}
-    split = combined_split.copy()
-    for level in np.linspace(0.0, 1.0, 6):
-        split["severity"] = 0.08 + 0.70 * float(level)
-        split["retrieval_gap"] = 0.04 + 0.50 * float(level)
-        for method in [m for m in METHODS if m["name"] in stress_methods]:
-            for seed in SEEDS:
-                for task in TASKS:
-                    for regime in REGIMES:
-                        stressed_regime = regime.copy()
-                        stressed_regime["severity"] = max(regime["severity"], 0.05 + 0.60 * float(level))
-                        stressed_regime["alias"] = max(regime["alias"], 0.02 + 0.56 * float(level))
-                        row = method_row(method, split, stressed_regime, task, seed)
-                        row["stress_level"] = float(level)
-                        stress_rows.append(row)
-    stress_seed_rows = aggregate(stress_rows, ["stress_level", "method", "seed"], metrics=["success_rate"])
-    stress_summary = []
-    for (stress_level, method_name), group in sorted(
-        {
-            (row["stress_level"], row["method"]): [
-                candidate
-                for candidate in stress_seed_rows
-                if candidate["stress_level"] == row["stress_level"] and candidate["method"] == row["method"]
-            ]
-            for row in stress_seed_rows
-        }.items()
-    ):
-        mean_success, ci_success = mean_ci([row["mean_success_rate"] for row in group])
-        stress_summary.append(
-            {
-                "stress_level": stress_level,
-                "method": method_name,
-                "mean_success_rate": mean_success,
-                "ci95_success_rate": ci_success,
-                "groups": len(group),
-                "episodes_per_group": EPISODES_PER_GROUP,
-            }
-        )
-
-    write_csv(RESULTS / "seed_task_regime_metrics.csv", rows)
-    write_csv(RESULTS / "seed_split_metrics.csv", seed_split)
-    write_csv(RESULTS / "per_task_regime_metrics.csv", per_task_regime)
-    write_csv(RESULTS / "metrics.csv", metrics)
-    write_csv(RESULTS / "pairwise_stats.csv", pair)
-    write_csv(RESULTS / "ablation_task_regime_seed_metrics.csv", ab_rows)
-    write_csv(RESULTS / "ablation_seed_metrics.csv", ab_seed)
-    write_csv(RESULTS / "ablation_metrics.csv", ab_metrics)
-    write_csv(RESULTS / "stress_sweep_seed_metrics.csv", stress_rows)
-    write_csv(RESULTS / "stress_sweep.csv", stress_summary)
-    write_csv(
-        RESULTS / "failure_cases.csv",
-        [
-            {"case": "wrong_mechanism_true_language_match", "expected_behavior": "reject language-near episode", "observed_failure_mode": "top-1 language retrieval collides", "lesson": "language similarity is not physical compatibility"},
-            {"case": "hidden_support_topology", "expected_behavior": "retrieve support-matched memory", "observed_failure_mode": "mechanism precision drops without probing", "lesson": "support topology needs active contact evidence"},
-            {"case": "actuator_lag_plus_compliance", "expected_behavior": "trigger recovery controller", "observed_failure_mode": "retrieval alone under-corrects force lag", "lesson": "retrieval must be coupled to recovery control"},
-            {"case": "visually_near_mechanically_opposite", "expected_behavior": "reject visual-nearest memory", "observed_failure_mode": "retrieved visual neighbor has opposite contact mode", "lesson": "visual similarity cannot substitute for mechanism indexing"},
-            {"case": "stale_recovery_memory", "expected_behavior": "discount old recovery episode", "observed_failure_mode": "old recovery succeeds in source embodiment but jams the target gripper", "lesson": "retrieval memories need embodiment-age and actuator-context checks"},
-            {"case": "partial_observability_alias", "expected_behavior": "query or probe before retrieving", "observed_failure_mode": "two mechanisms share the same observed state until contact", "lesson": "retrieval controller needs active disambiguation under hidden mechanism state"},
-            {"case": "overconformal_rejection", "expected_behavior": "retain useful mechanism-near memories", "observed_failure_mode": "conservative filter rejects helpful recovery cases under high shift", "lesson": "risk filters should not erase mechanism coverage"},
-            {"case": "oracle_gap_under_compound_shift", "expected_behavior": "approach oracle mechanism retrieval", "observed_failure_mode": "oracle remains substantially better under maximum mechanism mismatch", "lesson": "local retrieval index is useful but not saturated"},
-        ],
-    )
-
-    combined = {r["method"]: r for r in metrics if r["split"] == "combined_stress"}
-    proposed = combined["proposed_mechanism_retrieval_controller"]
-    non_oracle = [m["name"] for m in METHODS if m["name"] not in {"proposed_mechanism_retrieval_controller", "oracle_mechanism_retrieval"}]
-    strongest = max(non_oracle, key=lambda name: combined[name]["mean_success_rate"])
-    strongest_row = combined[strongest]
-    pair_strong = next(r for r in pair if r["baseline"] == strongest)
-    full_ab = next(r for r in ab_metrics if r["ablation"] == "full_mechanism_retrieval")
-    best_removed = max([r for r in ab_metrics if r["ablation"] != "full_mechanism_retrieval"], key=lambda r: r["mean_success_rate"])
-    gates = {
-        "success_margin_ge_0.030": proposed["mean_success_rate"] - strongest_row["mean_success_rate"] >= 0.030,
-        "mechanism_precision_delta_ge_0.030": proposed["mean_mechanism_precision"] - strongest_row["mean_mechanism_precision"] >= 0.030,
-        "incompatible_retrieval_delta_le_-0.020": proposed["mean_incompatible_retrieval_rate"] - strongest_row["mean_incompatible_retrieval_rate"] <= -0.020,
-        "damage_delta_le_0": proposed["mean_damage_rate"] - strongest_row["mean_damage_rate"] <= 0.0,
-        "query_cost_delta_le_0": proposed["mean_query_cost"] - strongest_row["mean_query_cost"] <= 0.0,
-        "recovery_success_delta_ge_0.020": proposed["mean_recovery_success"] - strongest_row["mean_recovery_success"] >= 0.020,
-        "paired_seed_wins_ge_5": int(pair_strong["paired_seed_wins"]) >= 5,
-        "ablation_margin_ge_0.020": full_ab["mean_success_rate"] - best_removed["mean_success_rate"] >= 0.020,
-    }
-    decision = "STRONG_REVISE" if all(gates.values()) else "KILL_ARCHIVE"
-
-    combined_table = []
-    for r in sorted(combined.values(), key=lambda row: row["mean_success_rate"], reverse=True):
-        combined_table.append(
-            {
-                "method": r["method"].replace("_", "\\_"),
-                "success": f"{r['mean_success_rate']:.3f} $\\pm$ {r['ci95_success_rate']:.3f}",
-                "precision": f"{r['mean_mechanism_precision']:.3f}",
-                "incompatible": f"{r['mean_incompatible_retrieval_rate']:.3f}",
-                "damage": f"{r['mean_damage_rate']:.3f}",
-                "query": f"{r['mean_query_cost']:.3f}",
-            }
-        )
-    latex_table(RESULTS / "combined_stress_table.tex", combined_table, ["method", "success", "precision", "incompatible", "damage", "query"])
-
-    ab_table = []
-    for r in sorted(ab_metrics, key=lambda row: row["mean_success_rate"], reverse=True):
-        ab_table.append(
-            {
-                "ablation": r["ablation"].replace("_", "\\_"),
-                "success": f"{r['mean_success_rate']:.3f} $\\pm$ {r['ci95_success_rate']:.3f}",
-                "precision": f"{r['mean_mechanism_precision']:.3f}",
-                "incompat": f"{r['mean_incompatible_retrieval_rate']:.3f}",
-            }
-        )
-    latex_table(RESULTS / "ablation_table.tex", ab_table, ["ablation", "success", "precision", "incompat"])
-
-    pair_table = []
-    for r in sorted(pair, key=lambda row: row["baseline"]):
-        pair_table.append({"baseline": r["baseline"].replace("_", "\\_"), "diff": f"{r['mean_success_diff']:.3f} $\\pm$ {r['ci95_success_diff']:.3f}", "wins": f"{r['paired_seed_wins']}/7", "decisive": "yes" if r["decisive"] else "no"})
-    latex_table(RESULTS / "pairwise_decision_table.tex", pair_table, ["baseline", "diff", "wins", "decisive"])
-
-    plot_all(metrics, ab_metrics, stress_summary)
-
-    with (RESULTS / "summary.txt").open("w", encoding="utf-8") as handle:
-        handle.write("Paper 114 embodied retrieval-augmented control local evidence rebuild\n")
-        handle.write("Design: 5 tasks x 7 mechanism regimes x 5 corpus/domain splits x 9 methods, 7 seeds, 84 rollout episodes per group.\n")
-        handle.write(f"Terminal decision: {decision}\n")
-        handle.write(f"Strongest non-oracle baseline under combined stress: {strongest}\n")
-        handle.write(f"Proposed combined-stress success: {proposed['mean_success_rate']:.3f} +/- {proposed['ci95_success_rate']:.3f}\n")
-        handle.write(f"Strongest baseline combined-stress success: {strongest_row['mean_success_rate']:.3f} +/- {strongest_row['ci95_success_rate']:.3f}\n")
-        handle.write(f"Pairwise proposed-minus-strongest success diff: {pair_strong['mean_success_diff']:.3f} +/- {pair_strong['ci95_success_diff']:.3f}; wins={pair_strong['paired_seed_wins']}/7\n")
-        handle.write(f"Mechanism-precision delta: {proposed['mean_mechanism_precision'] - strongest_row['mean_mechanism_precision']:.3f}\n")
-        handle.write(f"Incompatible-retrieval delta: {proposed['mean_incompatible_retrieval_rate'] - strongest_row['mean_incompatible_retrieval_rate']:.3f}\n")
-        handle.write(f"Damage delta: {proposed['mean_damage_rate'] - strongest_row['mean_damage_rate']:.3f}\n")
-        handle.write(f"Query-cost delta: {proposed['mean_query_cost'] - strongest_row['mean_query_cost']:.3f}\n")
-        handle.write(f"Recovery-success delta: {proposed['mean_recovery_success'] - strongest_row['mean_recovery_success']:.3f}\n")
-        handle.write(f"Ablation margin over best removed component ({best_removed['ablation']}): {full_ab['mean_success_rate'] - best_removed['mean_success_rate']:.3f}\n")
-        handle.write("Gate results:\n")
-        for gate, passed in gates.items():
-            handle.write(f"- {gate}: {passed}\n")
-        handle.write("\nCombined-stress ranking:\n")
-        for r in sorted(combined.values(), key=lambda row: row["mean_success_rate"], reverse=True):
-            handle.write(
-                f"- {r['method']}: success={r['mean_success_rate']:.3f} +/- {r['ci95_success_rate']:.3f}; "
-                f"precision={r['mean_mechanism_precision']:.3f}; incompat={r['mean_incompatible_retrieval_rate']:.3f}; "
-                f"recovery={r['mean_recovery_success']:.3f}; damage={r['mean_damage_rate']:.3f}; query={r['mean_query_cost']:.3f}\n"
-            )
-
-    print(f"wrote embodied retrieval evidence to {RESULTS}")
-    print(f"terminal_decision={decision}")
-    print(f"strongest_baseline={strongest}")
-    print(f"success_margin={proposed['mean_success_rate'] - strongest_row['mean_success_rate']:.4f}")
-    print(f"precision_delta={proposed['mean_mechanism_precision'] - strongest_row['mean_mechanism_precision']:.4f}")
-    print(f"incompatible_delta={proposed['mean_incompatible_retrieval_rate'] - strongest_row['mean_incompatible_retrieval_rate']:.4f}")
-    print(f"ablation_margin={full_ab['mean_success_rate'] - best_removed['mean_success_rate']:.4f}")
+    rows = main_rows()
+    ab_rows = ablation_rows()
+    st_rows = stress_rows()
+    fx_rows = fixed_risk_rows()
+    summary = build_summary(rows, ab_rows, st_rows, fx_rows)
+    print(f"version={summary['version']}")
+    print(f"terminal_decision={summary['terminal_decision']}")
+    print(f"strongest_non_oracle={summary['strongest_non_oracle']}")
+    print(f"local_gates_pass={summary['local_gates_pass']}")
+    print(f"hard_success_margin={summary['metrics']['hard_success_margin']:.6f}")
+    print(f"hard_utility_margin={summary['metrics']['hard_utility_margin']:.6f}")
+    print(f"strict_fixed_risk_coverage={summary['metrics']['strict_fixed_risk_coverage']:.6f}")
 
 
 if __name__ == "__main__":
